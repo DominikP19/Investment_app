@@ -1,0 +1,47 @@
+services:
+  # Postgres database container
+  postgres:
+    container_name: postgres
+    image: postgres:18
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PW}
+      - POSTGRES_DB=${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgadmin container
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:9
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+    ports:
+      - 5050:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_MAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PW}
+ 
+  # main app container
+  app:
+    container_name: app_container
+    depends_on:
+      postgres:
+        condition: service_healthy
+    build:
+      context: .
+    ports:
+      - 8080:8080
+
+volumes:
+  db_data:
