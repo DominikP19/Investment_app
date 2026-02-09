@@ -2,7 +2,8 @@ services:
   # Postgres database container
   postgres:
     container_name: postgres
-    image: postgres:18
+    build:
+      context: ./db/.
     restart: always
     volumes:
       - db_data:/var/lib/postgresql
@@ -39,7 +40,7 @@ services:
       postgres:
         condition: service_healthy
     build:
-      context: .
+      context: ./src/.
     ports:
       - 8080:8080
 
