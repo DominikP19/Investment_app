@@ -1,17 +1,19 @@
 \c APP_DB
 
-CREATE TABLE IF NOT EXISTS ACCOUNTS (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    account_type VARCHAR(50) NOT NULL,
-    currency VARCHAR(3) NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS ASSET_TYPES (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
     code VARCHAR(20) NOT NULL UNIQUE
 );
+INSERT INTO ASSET_TYPES (name, code) VALUES
+('Stock', 'STOCK'),
+('Bond', 'BOND'),
+('ETF', 'ETF'),
+('Real Estate', 'REAL_ESTATE'),
+('Commodity', 'COMMODITY'),
+('Fund', 'FUND'),
+('Other', 'OTHER');
+
 CREATE TABLE IF NOT EXISTS LOG (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -19,26 +21,75 @@ CREATE TABLE IF NOT EXISTS LOG (
     message TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS TAX_RATES (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    rate NUMERIC(5, 2) NOT NULL DEFAULT 0.00
+);
+INSERT INTO TAX_RATES (name, rate) VALUES
+('Standard', 19.00),
+('Zero', 0.00);
+
 CREATE TABLE IF NOT EXISTS PORTFOLIOS (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    taxable BOOLEAN NOT NULL DEFAULT TRUE
+    taxable BOOLEAN NOT NULL DEFAULT TRUE,
+    tax_rate_id INTEGER,
+    constraint fk_tax_rate FOREIGN KEY (tax_rate_id) REFERENCES TAX_RATES(id)
 );
 
-INSERT INTO PORTFOLIOS (name, taxable) VALUES
-('General', TRUE),
-('IKE', FALSE),
-('IKZE', FALSE),
-('Brokerage', TRUE);
+INSERT INTO PORTFOLIOS (name, taxable, tax_rate_id) VALUES
+('General', TRUE, 1),
+('IKE', FALSE, 2),
+('IKZE', FALSE, 2),
+('Brokerage', TRUE, 1),
+('PPK', TRUE, 1);
+
+CREATE TABLE IF NOT EXISTS ACCOUNT_TYPES (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    currency VARCHAR(3) NOT NULL
+);
+
+INSERT INTO ACCOUNT_TYPES (name, currency) VALUES
+('Cash', 'PLN'),
+('Cash', 'USD'),
+('Cash', 'EUR'),
+('Bond', 'PLN'),
+('Stock', 'PLN'),
+('ETF', 'PLN'),
+('Real Estate', 'PLN'),
+('Commodity', 'PLN'),
+('Counterparty', 'PLN'),
+('Dividend', 'PLN'),
+('Fee', 'PLN'),
+('Interest', 'PLN'),
+('Tax', 'PLN'),
+('Tax Return', 'PLN');
+
+CREATE TABLE IF NOT EXISTS ACCOUNTS (
+    id SERIAL PRIMARY KEY,
+    account_id INTEGER NOT NULL,
+    portfolio_id INTEGER NOT NULL,
+    constraint fk_account_type FOREIGN KEY (account_id) REFERENCES ACCOUNT_TYPES(id),
+    constraint fk_portfolio FOREIGN KEY (portfolio_id) REFERENCES PORTFOLIOS(id)
+);
+
+INSERT INTO ACCOUNTS (account_id, portfolio_id)
+SELECT a.id as account_id, p.id as portfolio_id FROM ACCOUNT_TYPES a CROSS JOIN PORTFOLIOS p
+WHERE a.name != 'Tax' and p.taxable = FALSE
+UNION ALL
+SELECT a.id as account_id, p.id as portfolio_id FROM ACCOUNT_TYPES a CROSS JOIN PORTFOLIOS p
+WHERE a.name != 'Tax Return' and p.taxable = TRUE;
 
 CREATE TABLE IF NOT EXISTS STG_ASSET_DATA (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    isin VARCHAR(20) NOT NULL,
-    ticker varchar(20) NOT NULL,
+    isin VARCHAR(20),
+    ticker varchar(20),
     asset_type_code VARCHAR(20) NOT NULL,
     date DATE NOT NULL,
-    value NUMERIC(20, 4) NOT NULL,
+    unit_price NUMERIC(20, 4) NOT NULL,
     currency VARCHAR(3) NOT NULL
 );
 
@@ -46,16 +97,16 @@ CREATE TABLE IF NOT EXISTS STG_TRANSACTION_DATA (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
  --   asset_isin VARCHAR(20),
- --   asset_name VARCHAR(100) NOT NULL,
-    ticker VARCHAR(20) NOT NULL,
+    asset_name VARCHAR(100) NOT NULL,
+    ticker VARCHAR(20),
     transaction_type_code VARCHAR(3) NOT NULL,
-    units NUMERIC(20, 4) NOT NULL,
+    units NUMERIC(20, 2) NOT NULL,
     unit_price NUMERIC(20, 4) NOT NULL,
-    total_amount NUMERIC(20, 4) NOT NULL,
+    total_amount NUMERIC(20, 2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
-    fee NUMERIC(20, 4) NOT NULL DEFAULT 0,
-    total_with_fee NUMERIC(20, 4) NOT NULL,
-    tax_amount NUMERIC(20, 4) NOT NULL DEFAULT 0,
+    fee NUMERIC(20, 2) NOT NULL DEFAULT 0,
+    total_with_fee NUMERIC(20, 2) NOT NULL,
+    tax_amount NUMERIC(20, 2) NOT NULL DEFAULT 0,
     portfolio_name VARCHAR(100) NOT NULL
 );
 
@@ -63,6 +114,16 @@ CREATE TABLE IF NOT EXISTS TRANSACTION_TYPES (
     code VARCHAR(3) PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE
 );
+
+INSERT INTO TRANSACTION_TYPES (code, name) VALUES
+('BUY', 'Buy'),
+('SEL', 'Sell'),
+('DIV', 'Dividend'),
+('INT', 'Interest'),
+('FEE', 'Fee'),
+('TAX', 'Tax'),
+('TRT', 'Tax Return');
+
 
 CREATE TABLE IF NOT EXISTS ASSETS (
     id SERIAL PRIMARY KEY,
@@ -77,7 +138,7 @@ CREATE TABLE IF NOT EXISTS ASSET_VALUATIONS (
     id SERIAL PRIMARY KEY,
     asset_id INTEGER NOT NULL,
     date DATE NOT NULL,
-    value NUMERIC(20, 4) NOT NULL,
+    value NUMERIC(20, 2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
     constraint fk_asset FOREIGN KEY (asset_id) REFERENCES ASSETS(id)
 );
@@ -88,12 +149,13 @@ CREATE TABLE IF NOT EXISTS TRANSACTIONS (
     description TEXT NOT NULL,
     transaction_type VARCHAR(3) NOT NULL,
     asset_id INTEGER NOT NULL,
-    units NUMERIC(20, 4) NOT NULL,
-    amount NUMERIC(20, 4) NOT NULL,
+    units NUMERIC(20, 2) NOT NULL,
+    unit_price NUMERIC(20, 4) NOT NULL,
+    total_amount NUMERIC(20, 2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
+    fee NUMERIC(20, 2) NOT NULL DEFAULT 0,
+    tax_amount NUMERIC(20, 2) NOT NULL DEFAULT 0,
     portfolio_id INTEGER NOT NULL,
-    fee NUMERIC(20, 4) NOT NULL DEFAULT 0,
-    tax_amount NUMERIC(20, 4) NOT NULL DEFAULT 0,
     constraint fk_portfolio FOREIGN KEY (portfolio_id) REFERENCES PORTFOLIOS(id),
     constraint fk_asset FOREIGN KEY (asset_id) REFERENCES ASSETS(id),
     constraint fk_transaction_type FOREIGN KEY (transaction_type) REFERENCES TRANSACTION_TYPES(code)

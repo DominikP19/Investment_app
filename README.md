@@ -27,5 +27,6 @@ FUNCTIONALITIES:
 9. Transaciton import (csv)
 10. Automatic reevaluation of portfolio once new asset valuation loaded + historical portfolio value recorded
 11. Pie chart presentation of the portfolio breakdown
-12. Simple accounting & booking system providing  an aggregate status of each account (Cash, Dividends, etc.) 
+12. Simple accounting & booking system providing  an aggregate status of each account (Cash, Dividends, etc.)
+13. Calculate saved taxes on IKE/IKZE accounts
 
