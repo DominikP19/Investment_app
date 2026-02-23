@@ -42,7 +42,13 @@ services:
     build:
       context: ./src/.
     ports:
-      - 8080:8080
+      - 8000:8000
+    tty: true
+    stop_signal: SIGINT
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PW}
+      - POSTGRES_DB=${POSTGRES_DB}
 
 volumes:
   db_data:

@@ -19,4 +19,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["whoami"]
+CMD ["flask", "--app", "app", "run", "-h", "0.0.0.0", "-p", "8000"]
