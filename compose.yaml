@@ -27,6 +27,8 @@ services:
       postgres:
         condition: service_healthy
     restart: always
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     ports:
       - 5050:80
     environment:
@@ -49,6 +51,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PW}
       - POSTGRES_DB=${POSTGRES_DB}
+      - DB_HOST=${DB_HOST}
 
 volumes:
   db_data:
+  pgadmin_data:
