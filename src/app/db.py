@@ -18,3 +18,6 @@ def close_db(e=None):
 
     if db is not None:
         db.close()
+
+def init_app(app):
+    app.teardown_appcontext(close_db)

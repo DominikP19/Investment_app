@@ -3,14 +3,14 @@ import csv
 from flask import Blueprint
 
 
-bp = Blueprint('test', __name__, url_prefix='/import')
+bp = Blueprint('data_import', __name__, url_prefix='/import')
 
-@bp.route('/assets_csv', methotds=['POST'])
-def import_assets():
+@bp.route('/assets_csv', methods=['POST'])
+def import_assets_csv():
     pass
 
 @bp.route('/transactions_csv', methods=['POST'])
-def import_transactions():
+def import_transactions_csv():
     pass
 
 @bp.route('/assets_manual', methods=['POST'])

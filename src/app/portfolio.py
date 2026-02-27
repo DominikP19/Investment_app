@@ -1,13 +1,13 @@
 import app.db as db
 import csv
-from flask import Blueprint
+from flask import (Blueprint, render_template)
 
 
 bp = Blueprint('portfolio', __name__)
 
 @bp.route('/')
 def index():
-    pass
+    return render_template('index.html')
 
 @bp.route('/dashboard', methods=['GET'])
 def dashboard():
