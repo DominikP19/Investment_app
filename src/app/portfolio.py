@@ -11,12 +11,12 @@ def index():
 
 @bp.route('/dashboard', methods=['GET'])
 def dashboard():
-    pass
+    return render_template('dashboard.html')
 
 @bp.route('/transactions', methods=['GET'])
 def transactions():
-    pass
+    return render_template('transaction_list.html')
 
 @bp.route('/historical_valuation', methods=['GET'])
 def historical_valuation():
-    pass
+    return render_template('portfolio_valuation.html')

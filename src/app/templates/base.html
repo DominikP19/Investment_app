@@ -2,10 +2,19 @@
 <html>
 <head>
     <meta charset="utf-8">
-<title>{% block title %}{% endblock %} - Flaskr</title>
+<title>{% block title %}{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <nav>
-  <h1>Investment App</h1>
+  <h1>Investment manager</h1>
+  <ul>
+    <li><a href="{{ url_for('portfolio.index') }}">Home</a></li>
+    <li><a href="{{ url_for('portfolio.dashboard') }}">Dashboard</a></li>
+    <li><a href="{{ url_for('portfolio.transactions') }}">Transaction List</a></li>
+    <li><a href="{{ url_for('portfolio.historical_valuation') }}">Portfolio Valuation</a></li>
+    <li><a href="{{ url_for('data_import.import_csv') }}">Import CSV</a></li>
+    <li><a href="{{ url_for('data_import.import_asset_manual') }}">Add Asset</a></li>
+    <li><a href="{{ url_for('data_import.import_transaction_manual') }}">Add Transaction</a></li>
+  </ul>
 </nav>
 <section class="content">
   <header>
