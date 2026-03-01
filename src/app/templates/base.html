@@ -13,13 +13,18 @@
     <li><a href="{{ url_for('portfolio.historical_valuation') }}">Portfolio Valuation</a></li>
     <li><a href="{{ url_for('data_import.import_csv') }}">Import CSV</a></li>
     <li><a href="{{ url_for('data_import.import_asset_manual') }}">Add Asset</a></li>
+    <li><a href="{{ url_for('data_import.asset_list') }}">Asset List</a></li>
     <li><a href="{{ url_for('data_import.import_transaction_manual') }}">Add Transaction</a></li>
+    <li><a href="{{ url_for('data_import.transaction_list') }}">Transaction List</a></li>
   </ul>
 </nav>
 <section class="content">
   <header>
     {% block header %}{% endblock %}
   </header>
+  {% for message in get_flashed_messages() %}
+  <div class="flash">{{ message }}</div>
+  {% endfor %}
   {% block content %}{% endblock %}
 </section>
 </body>

@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
@@ -8,7 +8,8 @@ def create_app():
         POSTGRES_USER=os.getenv('POSTGRES_USER'),
         POSTGRES_PASSWORD=os.getenv('POSTGRES_PASSWORD'),
         POSTGRES_DB=os.getenv('POSTGRES_DB'),
-        DB_HOST=os.getenv('DB_HOST')
+        DB_HOST=os.getenv('DB_HOST'),
+        SECRET_KEY='dev'
     )
 
     @app.route('/hello')
@@ -28,5 +29,6 @@ def create_app():
     import app.portfolio as portfolio
     app.register_blueprint(portfolio.bp)
     app.add_url_rule('/', endpoint='index')
+
         
     return app

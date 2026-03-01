@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Asset List{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+    <table>
+        <tr><th>Name</th><th>ISIN</th><th>Ticker</th><th>Asset Type</th></tr>
+        {% for x in assets %}
+        <tr>
+            <td>{{ x[1] }}</td>
+            <td>{{ x[2] }}</td>
+            <td>{{ x[3] }}</td>
+            <td>{{ x[4] }}</td>
+            <td><a href="{{ url_for('data_import.edit_asset', id=x[0]) }}">Edit</a></td>
+            <td><a href="{{ url_for('data_import.delete_asset', id=x[0]) }}">Delete</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+{% endblock %}
