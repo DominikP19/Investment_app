@@ -55,3 +55,7 @@ nav ul li a, nav ul li span, header .action {
     display: block; 
     padding: 0.5rem; 
 }
+.asset-edit {
+    display: flex;
+    justify-content: center;
+}

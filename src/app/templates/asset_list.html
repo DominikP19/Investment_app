@@ -13,8 +13,7 @@
             <td>{{ x[2] }}</td>
             <td>{{ x[3] }}</td>
             <td>{{ x[4] }}</td>
-            <td><a href="{{ url_for('data_import.edit_asset', id=x[0]) }}">Edit</a></td>
-            <td><a href="{{ url_for('data_import.delete_asset', id=x[0]) }}">Delete</a></td>
+            <td><a href="{{ url_for('data_import.asset_edit', id=x[0]) }}">Edit</a></td>
         </tr>
         {% endfor %}
     </table>

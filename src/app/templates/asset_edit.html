@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Edit Asset{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <div class ="asset-edit">
+    <form method="post">
+        {{ form.csrf_token }}
+        {{ form.name.label }} {{ form.name() }}
+        {{ form.isin.label }} {{ form.isin() }}
+        {{ form.ticker.label }} {{ form.ticker() }}
+        {{ form.asset_type.label }} {{ form.asset_type() }}
+        {{ form.submit() }}
+    </form>
+    <form action="{{ url_for('data_import.asset_delete', id=id) }}" method="post">
+      <input class="danger" type="submit" value="Delete" onclick="return confirm('Are you sure?');">
+    </form>
+  </div>
+{% endblock %}
