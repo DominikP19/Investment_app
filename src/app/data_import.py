@@ -10,7 +10,7 @@ def get_asset_types():
     error = None
     result = None
     try:
-        result = con.execute('SELECT id, code FROM asset_types;').fetchall()
+        result = con.execute('SELECT id, code FROM asset_type;').fetchall()
     except Exception as e:
         #todo: add logging
         error = f'Failed to fetch asset types: {str(e)}'
@@ -23,7 +23,7 @@ def get_asset(id):
     error = None
     result = None
     try:
-        result = con.execute('SELECT id, name, isin, ticker, asset_type_id FROM assets WHERE id = %s;', (id,)).fetchone()
+        result = con.execute('SELECT id, name, isin, ticker, asset_type_id FROM asset WHERE id = %s;', (id,)).fetchone()
     except Exception as e:
         #todo: add logging
         error = f'Failed to fetch asset: {str(e)}'
@@ -48,12 +48,12 @@ def import_asset_manual():
         asset_type = form.asset_type.data
         try:
             con.execute(
-            "INSERT INTO ASSETS (name, isin, ticker, asset_type_id) VALUES (%s, %s, %s, %s)",
+            "INSERT INTO ASSET (name, isin, ticker, asset_type_id) VALUES (%s, %s, %s, %s)",
             (name, isin, ticker, asset_type)
             )
             con.commit()
         except Exception as e:
-            error = f"ASSETS insert failed: {str(e)}"
+            error = f"ASSET insert failed: {str(e)}"
 
         return redirect(url_for('data_import.asset_list'))
 
@@ -67,8 +67,8 @@ def asset_list():
     error = None
     try:
         #change to row_facotry to have dict and better template definition
-        assets = con.execute('SELECT a.id, a.name, a.isin, a.ticker, at.name as asset_type FROM assets a \
-                            INNER JOIN asset_types at ON at.id = a.asset_type_id;').fetchall()
+        assets = con.execute('SELECT a.id, a.name, a.isin, a.ticker, at.name as asset_type FROM asset a \
+                            INNER JOIN asset_type at ON at.id = a.asset_type_id;').fetchall()
     except Exception as e:
         error = f'Failed to fetch assets: {str(e)}'
 
@@ -85,7 +85,7 @@ def asset_edit(id):
         form.name.data = asset[1]
         form.isin.data = asset[2]
         form.ticker.data = asset[3]
-        
+
     form.asset_type.choices = get_asset_types()
 
     if form.validate_on_submit():
@@ -96,12 +96,12 @@ def asset_edit(id):
         asset_type = form.asset_type.data
         try:
             con.execute(
-            "UPDATE ASSETS SET name=%s, isin=%s, ticker=%s, asset_type_id=%s WHERE id=%s",
+            "UPDATE ASSET SET name=%s, isin=%s, ticker=%s, asset_type_id=%s WHERE id=%s",
             (name, isin, ticker, asset_type, id)
             )
             con.commit()
         except Exception as e:
-            error = f"ASSETS update failed: {str(e)}"
+            error = f"ASSET update failed: {str(e)}"
 
         return redirect(url_for('data_import.asset_list'))
     
@@ -115,10 +115,10 @@ def asset_delete(id):
     con = db.get_db()
     error = None
     try:
-        con.execute("DELETE FROM ASSETS WHERE id=%s", (id,))
+        con.execute("DELETE FROM ASSET WHERE id=%s", (id,))
         con.commit()
     except Exception as e:
-        error = f"ASSETS delete failed: {str(e)}"
+        error = f"ASSET delete failed: {str(e)}"
 
     flash(error)
 
@@ -131,3 +131,21 @@ def import_transaction_manual():
 @bp.route('/transaction_list', methods=['GET'])
 def transaction_list():
     return render_template('transaction_list.html')
+
+@bp.route('/transaction_edit/<int:id>', methods=['GET', 'POST'])
+def transaction_edit(id):
+    return render_template('edit_transaction.html', id=id)
+
+@bp.route('/transaction_delete/<int:id>', methods=['POST'])
+def transaction_delete(id):
+    con = db.get_db()
+    error = None
+    try:
+        con.execute("DELETE FROM TRANSACTION WHERE id=%s", (id,))
+        con.commit()
+    except Exception as e:
+        error = f"TRANSACTION delete failed: {str(e)}"
+
+    flash(error)
+
+    return redirect(url_for('data_import.transaction_list'))
