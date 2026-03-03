@@ -59,7 +59,7 @@ def import_asset_manual():
 
     flash(error)
 
-    return render_template('add_asset.html', form=form)
+    return render_template('asset_add.html', form=form)
 
 @bp.route('/asset_list', methods=['GET'])
 def asset_list():
@@ -126,7 +126,7 @@ def asset_delete(id):
 
 @bp.route('/transaction_manual', methods=['GET', 'POST'])
 def import_transaction_manual():
-    return render_template('add_transaction.html')
+    return render_template('transaction_add.html')
 
 @bp.route('/transaction_list', methods=['GET'])
 def transaction_list():

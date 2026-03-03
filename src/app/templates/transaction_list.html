@@ -5,5 +5,20 @@
 {% endblock %}
 
 {% block content %}
-<p> Placeholder for Transaction List</p>
+    <table>
+        <tr><th>Asset</th><th>Date</th><th>Transaction Type</th>
+            <th>Description</th><th>Quantity</th><th>Currency</th>
+            <th>Price</th><th>Total Amount</th><th>Fee</th>
+            <th>Tax Amount</th><th>Portfolio</th>
+        </tr>
+        {% for x in assets %}
+        <tr>
+            <td>{{ x[1] }}</td>
+            <td>{{ x[2] }}</td>
+            <td>{{ x[3] }}</td>
+            <td>{{ x[4] }}</td>
+            <td><a href="{{ url_for('data_import.transaction_edit', id=x[0]) }}">Edit</a></td>
+        </tr>
+        {% endfor %}
+    </table>
 {% endblock %}
