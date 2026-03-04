@@ -131,6 +131,7 @@ def import_transaction_manual():
     form.asset.choices = select_query(query_asset, dict=False, fetchall=True)
     form.portfolio.choices = select_query(query_portfolio, dict=False, fetchall=True)
     form.transaction_type.choices = select_query(query_transaction_type, dict=False, fetchall=True)
+
     if form.validate_on_submit():
         con = db.get_db()
         date = form.date.data
@@ -142,19 +143,14 @@ def import_transaction_manual():
         currency = form.currency.data
         fee = decimal.Decimal(form.fee.data)
         portfolio = form.portfolio.data
-        total_amount =  decimal.Decimal((quantity * price) + fee) 
-        tax_bracket = select_query("SELECT rate FROM tax_rate WHERE id = (SELECT tax_rate_id " \
-        "FROM portfolio WHERE id=%s)", (portfolio,))
-        tax_amount = int(math.ceil(((quantity * price) * tax_bracket) / 100))
 
         try:
             con.execute(
                 "INSERT INTO TRANSACTION (date, description, transaction_type_id, " \
-                "asset_id, quantity, price, total_amount, currency, fee, " \
-                "tax_amount, portfolio_id) " \
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "asset_id, quantity, price, currency, fee, portfolio_id) " \
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (date, description, transaction_type, asset, quantity, 
-                 price, total_amount, currency, fee, tax_amount, portfolio)
+                 price, currency, fee, portfolio)
             )
             con.commit()
         except Exception as e:
@@ -195,15 +191,13 @@ def transaction_edit(id):
     if request.method == 'GET':
         form.date.data = transaction['date']
         form.description.data = transaction['description']
-        #form.transaction_type.data = transaction['transaction_type_id']
+        form.transaction_type.data = transaction['transaction_type_id']
         form.asset.data = transaction['asset_id']
         form.quantity.data = transaction['quantity']
         form.currency.data = transaction['currency']
         form.price.data = transaction['price']
-        form.total_amount.data = transaction['total_amount']
         form.fee.data = transaction['fee']
-        form.tax_amount.data = transaction['tax_amount']
-        #form.portfolio.data = transaction['portfolio_id']
+        form.portfolio.data = transaction['portfolio_id']
 
     query_asset = "SELECT id, name FROM asset;"
     query_portfolio = "SELECT id, name FROM portfolio;"
@@ -220,19 +214,17 @@ def transaction_edit(id):
         asset = form.asset.data
         quantity = form.quantity.data
         price = decimal.Decimal(form.price.data)
-        total_amount = decimal.Decimal(form.total_amount.data)
         currency = form.currency.data
         fee = decimal.Decimal(form.fee.data)
-        tax_amount = decimal.Decimal(form.tax_amount.data)
         portfolio = form.portfolio.data
 
         try:
             con.execute(
                 "UPDATE TRANSACTION SET date=%s, description=%s, transaction_type_id=%s, " \
-                "asset_id=%s, quantity=%s, price=%s, total_amount=%s, currency=%s, fee=%s, " \
-                "tax_amount=%s, portfolio_id=%s WHERE id=%s",
+                "asset_id=%s, quantity=%s, price=%s, currency=%s, fee=%s, " \
+                "portfolio_id=%s WHERE id=%s",
                 (date, description, transaction_type, asset, quantity,
-                 price, total_amount, currency, fee, tax_amount, portfolio, id)
+                 price, currency, fee, portfolio, id)
             )
             con.commit()
         except Exception as e:

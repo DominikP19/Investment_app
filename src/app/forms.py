@@ -23,10 +23,8 @@ class TransactionForm(FlaskForm):
     asset = SelectField('Asset', coerce=int, validators=[InputRequired()])
     quantity = DecimalField('Quantity', validators=[DataRequired()])
     price = DecimalField('Price', validators=[DataRequired()])
-    total_amount = DecimalField('Total Amount', validators=[DataRequired()])
     currency = StringField('Currency', validators=[DataRequired()])
     fee = DecimalField('Fee', default=0)
-    tax_amount = DecimalField('Tax Amount', default=0)
     portfolio = SelectField('Portfolio', coerce=int, validators=[InputRequired()])
 
 class TransactionFormAdd(TransactionForm):
