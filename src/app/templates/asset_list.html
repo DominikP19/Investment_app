@@ -9,11 +9,11 @@
         <tr><th>Name</th><th>ISIN</th><th>Ticker</th><th>Asset Type</th></tr>
         {% for x in assets %}
         <tr>
-            <td>{{ x[1] }}</td>
-            <td>{{ x[2] }}</td>
-            <td>{{ x[3] }}</td>
-            <td>{{ x[4] }}</td>
-            <td><a href="{{ url_for('data_import.asset_edit', id=x[0]) }}">Edit</a></td>
+            <td>{{ x['name'] }}</td>
+            <td>{{ x['isin'] }}</td>
+            <td>{{ x['ticker'] }}</td>
+            <td>{{ x['asset_type'] }}</td>
+            <td><a href="{{ url_for('data_import.asset_edit', id=x['id']) }}">Edit</a></td>
         </tr>
         {% endfor %}
     </table>

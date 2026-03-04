@@ -11,13 +11,20 @@
             <th>Price</th><th>Total Amount</th><th>Fee</th>
             <th>Tax Amount</th><th>Portfolio</th>
         </tr>
-        {% for x in assets %}
+        {% for trans in transactions %}
         <tr>
-            <td>{{ x[1] }}</td>
-            <td>{{ x[2] }}</td>
-            <td>{{ x[3] }}</td>
-            <td>{{ x[4] }}</td>
-            <td><a href="{{ url_for('data_import.transaction_edit', id=x[0]) }}">Edit</a></td>
+            <td>{{ trans['asset'] }}</td>
+            <td>{{ trans['date'] }}</td>
+            <td>{{ trans['transaction_type'] }}</td>
+            <td>{{ trans['description'] }}</td>
+            <td>{{ trans['quantity'] }}</td>
+            <td>{{ trans['currency'] }}</td>
+            <td>{{ trans['price'] }}</td>
+            <td>{{ trans['total_amount'] }}</td>
+            <td>{{ trans['fee'] }}</td>
+            <td>{{ trans['tax_amount'] }}</td>
+            <td>{{ trans['portfolio'] }}</td>
+            <td><a href="{{ url_for('data_import.transaction_edit', id=trans['id']) }}">Edit</a></td>
         </tr>
         {% endfor %}
     </table>

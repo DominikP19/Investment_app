@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Edit Asset{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <div class ="transaction-edit">
+    <form method="post">
+        {{ form.csrf_token }}
+        <div>{{ form.date.label }} {{ form.date() }}</div>
+        <div>{{ form.description.label }} {{ form.description() }}</div>
+        <div>{{ form.transaction_type.label }} {{ form.transaction_type() }}</div>
+        <div>{{ form.asset.label }} {{ form.asset() }}</div>
+        <div>{{ form.quantity.label }} {{ form.quantity() }}</div>
+        <div>{{ form.currency.label }} {{ form.currency() }}</div>
+        <div>{{ form.price.label }} {{ form.price() }}</div>
+        <div>{{ form.total_amount.label }} {{ form.total_amount() }}</div>
+        <div>{{ form.fee.label }} {{ form.fee() }}</div>
+        <div>{{ form.tax_amount.label }} {{ form.tax_amount() }}</div>
+        <div>{{ form.portfolio.label }} {{ form.portfolio() }}</div>
+        {{ form.submit() }}
+    </form>
+    <form action="{{ url_for('data_import.transaction_delete', id=id) }}" method="post">
+      <input class="danger" type="submit" value="Delete" onclick="return confirm('Are you sure?');">
+    </form>
+  </div>
+{% endblock %}

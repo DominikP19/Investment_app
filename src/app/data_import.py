@@ -1,35 +1,34 @@
 import app.db as db
-from app.forms import AssetFormAdd, AssetFormEdit
+from psycopg.rows import dict_row
+from app.forms import AssetFormAdd, AssetFormEdit, TransactionFormAdd, TransactionFormEdit
 import csv
+import decimal
 from flask import Blueprint, g, render_template, request, redirect, url_for, flash
+import math
 
 bp = Blueprint('data_import', __name__, url_prefix='/import')
 
-def get_asset_types():
-    con = db.get_db()
+def select_query(query, dict=False, fetchall=False, *params):
+    conn = db.get_db()
     error = None
     result = None
-    try:
-        result = con.execute('SELECT id, code FROM asset_type;').fetchall()
-    except Exception as e:
-        #todo: add logging
-        error = f'Failed to fetch asset types: {str(e)}'
+    result_dict = None
+    if dict:
+        cur = conn.cursor(row_factory=dict_row)
+        try:
+            result_dict = cur.execute(query, params).fetchall() if fetchall else cur.execute(query, params).fetchone()
+        except Exception as e:
+            error = f'Failed to execute query: {str(e)}'
+    else:       
+        try:
+            result = conn.execute(query, params).fetchall() if fetchall else conn.execute(query, params).fetchone()
+        except Exception as e:
+            error = f'Failed to execute query: {str(e)}'
 
-    flash(error)
-    return result
+    if error:   
+        flash(error)
 
-def get_asset(id):
-    con = db.get_db()
-    error = None
-    result = None
-    try:
-        result = con.execute('SELECT id, name, isin, ticker, asset_type_id FROM asset WHERE id = %s;', (id,)).fetchone()
-    except Exception as e:
-        #todo: add logging
-        error = f'Failed to fetch asset: {str(e)}'
-
-    flash(error)
-    return result
+    return result_dict if dict else result
 
 @bp.route('/import_csv', methods=['GET', 'POST'])
 def import_csv():
@@ -38,8 +37,9 @@ def import_csv():
 @bp.route('/asset_manual', methods=['GET', 'POST'])
 def import_asset_manual():
     error = None
+    query = "SELECT id, code FROM asset_type;"
     form = AssetFormAdd()
-    form.asset_type.choices = get_asset_types()
+    form.asset_type.choices = select_query(query, dict=False, fetchall=True)
     if form.validate_on_submit():
         con = db.get_db()
         name = form.name.data
@@ -63,30 +63,27 @@ def import_asset_manual():
 
 @bp.route('/asset_list', methods=['GET'])
 def asset_list():
-    con = db.get_db()
-    error = None
-    try:
-        #change to row_facotry to have dict and better template definition
-        assets = con.execute('SELECT a.id, a.name, a.isin, a.ticker, at.name as asset_type FROM asset a \
-                            INNER JOIN asset_type at ON at.id = a.asset_type_id;').fetchall()
-    except Exception as e:
-        error = f'Failed to fetch assets: {str(e)}'
-
-    flash(error)
+    query = "SELECT a.id, a.name, a.isin, a.ticker, at.name as asset_type FROM asset a " \
+                            "INNER JOIN asset_type at ON at.id = a.asset_type_id;"
+    
+    assets = select_query(query, dict=True, fetchall=True)
 
     return render_template('asset_list.html', assets=assets)
 
 @bp.route('/asset_edit/<int:id>', methods=['GET', 'POST'])
 def asset_edit(id):
     error = None
-    asset = get_asset(id)
+    query_asset = "SELECT id, name, isin, ticker, asset_type_id " \
+        "FROM asset WHERE id = %s;"
+    asset = select_query(query_asset, True, False, id)
     form = AssetFormEdit()
     if request.method == 'GET':
-        form.name.data = asset[1]
-        form.isin.data = asset[2]
-        form.ticker.data = asset[3]
+        form.name.data = asset['name']
+        form.isin.data = asset['isin']
+        form.ticker.data = asset['ticker']
 
-    form.asset_type.choices = get_asset_types()
+    query_asset_type = "SELECT id, code FROM asset_type;"
+    form.asset_type.choices = select_query(query_asset_type, dict=False, fetchall=True)
 
     if form.validate_on_submit():
         con = db.get_db()
@@ -126,15 +123,126 @@ def asset_delete(id):
 
 @bp.route('/transaction_manual', methods=['GET', 'POST'])
 def import_transaction_manual():
-    return render_template('transaction_add.html')
+    error = None
+    query_asset = "SELECT id, name FROM asset;"
+    query_portfolio = "SELECT id, name FROM portfolio;"
+    query_transaction_type = "SELECT id, code FROM transaction_type;"
+    form = TransactionFormAdd()
+    form.asset.choices = select_query(query_asset, dict=False, fetchall=True)
+    form.portfolio.choices = select_query(query_portfolio, dict=False, fetchall=True)
+    form.transaction_type.choices = select_query(query_transaction_type, dict=False, fetchall=True)
+    if form.validate_on_submit():
+        con = db.get_db()
+        date = form.date.data
+        description = form.description.data
+        transaction_type = form.transaction_type.data
+        asset = form.asset.data
+        quantity = form.quantity.data
+        price = decimal.Decimal(form.price.data)
+        currency = form.currency.data
+        fee = decimal.Decimal(form.fee.data)
+        portfolio = form.portfolio.data
+        total_amount =  decimal.Decimal((quantity * price) + fee) 
+        tax_bracket = select_query("SELECT rate FROM tax_rate WHERE id = (SELECT tax_rate_id " \
+        "FROM portfolio WHERE id=%s)", (portfolio,))
+        tax_amount = int(math.ceil(((quantity * price) * tax_bracket) / 100))
+
+        try:
+            con.execute(
+                "INSERT INTO TRANSACTION (date, description, transaction_type_id, " \
+                "asset_id, quantity, price, total_amount, currency, fee, " \
+                "tax_amount, portfolio_id) " \
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (date, description, transaction_type, asset, quantity, 
+                 price, total_amount, currency, fee, tax_amount, portfolio)
+            )
+            con.commit()
+        except Exception as e:
+            error = f"TRANSACTION insert failed: {str(e)}"
+
+        return redirect(url_for('data_import.transaction_list'))
+
+    flash(error)
+
+    return render_template('transaction_add.html', form=form)
 
 @bp.route('/transaction_list', methods=['GET'])
 def transaction_list():
-    return render_template('transaction_list.html')
+    query = "SELECT t.id, t.date, t.description, tt.code as transaction_type, " \
+    "a.name as asset, t.quantity, t.currency, t.price, t.total_amount, t.fee, " \
+    "t.tax_amount, p.name as portfolio " \
+    "FROM TRANSACTION t " \
+    "JOIN transaction_type tt " \
+    "ON t.transaction_type_id = tt.id " \
+    "JOIN asset a " \
+    "ON t.asset_id = a.id " \
+    "JOIN portfolio p " \
+    "ON t.portfolio_id = p.id;"
+
+    transactions = select_query(query, dict=True, fetchall=True)
+
+    return render_template('transaction_list.html', transactions=transactions)
 
 @bp.route('/transaction_edit/<int:id>', methods=['GET', 'POST'])
 def transaction_edit(id):
-    return render_template('edit_transaction.html', id=id)
+    error = None
+    query_transaction = "SELECT id, date, description, transaction_type_id, " \
+    "asset_id, quantity, price, total_amount, currency, fee, tax_amount, " \
+    "portfolio_id " \
+    "FROM TRANSACTION WHERE id=%s"
+    transaction = select_query(query_transaction, True, False, id)
+    form = TransactionFormEdit()
+    if request.method == 'GET':
+        form.date.data = transaction['date']
+        form.description.data = transaction['description']
+        #form.transaction_type.data = transaction['transaction_type_id']
+        form.asset.data = transaction['asset_id']
+        form.quantity.data = transaction['quantity']
+        form.currency.data = transaction['currency']
+        form.price.data = transaction['price']
+        form.total_amount.data = transaction['total_amount']
+        form.fee.data = transaction['fee']
+        form.tax_amount.data = transaction['tax_amount']
+        #form.portfolio.data = transaction['portfolio_id']
+
+    query_asset = "SELECT id, name FROM asset;"
+    query_portfolio = "SELECT id, name FROM portfolio;"
+    query_transaction_type = "SELECT id, code FROM transaction_type;"
+    form.asset.choices = select_query(query_asset, dict=False, fetchall=True)
+    form.portfolio.choices = select_query(query_portfolio, dict=False, fetchall=True)
+    form.transaction_type.choices = select_query(query_transaction_type, dict=False, fetchall=True)
+
+    if form.validate_on_submit():
+        con = db.get_db()
+        date = form.date.data
+        description = form.description.data
+        transaction_type = form.transaction_type.data
+        asset = form.asset.data
+        quantity = form.quantity.data
+        price = decimal.Decimal(form.price.data)
+        total_amount = decimal.Decimal(form.total_amount.data)
+        currency = form.currency.data
+        fee = decimal.Decimal(form.fee.data)
+        tax_amount = decimal.Decimal(form.tax_amount.data)
+        portfolio = form.portfolio.data
+
+        try:
+            con.execute(
+                "UPDATE TRANSACTION SET date=%s, description=%s, transaction_type_id=%s, " \
+                "asset_id=%s, quantity=%s, price=%s, total_amount=%s, currency=%s, fee=%s, " \
+                "tax_amount=%s, portfolio_id=%s WHERE id=%s",
+                (date, description, transaction_type, asset, quantity,
+                 price, total_amount, currency, fee, tax_amount, portfolio, id)
+            )
+            con.commit()
+        except Exception as e:
+            error = f"TRANSACTION update failed: {str(e)}"
+
+        return redirect(url_for('data_import.transaction_list'))
+
+    flash(error)
+
+    return render_template('transaction_edit.html', form=form, id=id)
 
 @bp.route('/transaction_delete/<int:id>', methods=['POST'])
 def transaction_delete(id):

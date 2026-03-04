@@ -5,6 +5,7 @@
 {% endblock %}
 
 {% block content %}
+  <div class ="transaction-add">
     <form method="post">
         {{ form.csrf_token }}
         {{ form.date.label }} {{ form.date() }}
@@ -14,10 +15,11 @@
         {{ form.quantity.label }} {{ form.quantity() }}
         {{ form.currency.label }} {{ form.currency() }}
         {{ form.price.label }} {{ form.price() }}
-        {{ form.total_amount.label }} {{ form.total_amount() }}
+        <!-- {{ form.total_amount.label }} {{ form.total_amount() }} -->
         {{ form.fee.label }} {{ form.fee() }}
-        {{ form.tax_amount.label }} {{ form.tax_amount() }}
+        <!-- {{ form.tax_amount.label }} {{ form.tax_amount() }} -->
         {{ form.portfolio.label }} {{ form.portfolio() }}
         {{ form.submit() }}
     </form>
+  </div>
 {% endblock %}

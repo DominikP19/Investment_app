@@ -1,7 +1,7 @@
 body {
     font-family: system-ui, sans-serif;
     margin: 2rem auto;
-    max-width: 1024px;
+    max-width: 1600px;
     background-color: #fafafa;
     color: #333;
 }
@@ -57,5 +57,35 @@ nav ul li a, nav ul li span, header .action {
 }
 .asset-edit {
     display: flex;
+    inline-size: min-content;
     justify-content: center;
+    gap: 0 0.5rem;
+}
+.transaction-edit {
+    display: flex;
+    inline-size: min-content;
+    justify-content: center;
+    gap: 0 0.5rem;
+}
+form {
+    inline-size: min-content;
+    margin-block: 1em;
+    margin-inline: auto;
+    display: grid;
+    gap: 0 0.5rem;
+    grid-auto-rows: auto;
+}
+label {
+    grid-row: 1;
+}
+input {
+  font-size: 0.8em;
+  grid-row: 2;
+}
+select {
+  font-size: 0.8em;
+  grid-row: 2;
+}
+button {
+  object-fit: cover;
 }
