@@ -6,12 +6,13 @@
 
 {% block content %}
     <table>
-        <tr><th>Name</th><th>ISIN</th><th>Ticker</th><th>Asset Type</th></tr>
+        <tr><th>Name</th><th>ISIN</th><th>Ticker</th><th>Currency</th><th>Asset Type</th></tr>
         {% for x in assets %}
         <tr>
             <td>{{ x['name'] }}</td>
             <td>{{ x['isin'] }}</td>
             <td>{{ x['ticker'] }}</td>
+            <td>{{ x['currency'] }}</td>
             <td>{{ x['asset_type'] }}</td>
             <td><a href="{{ url_for('data_import.asset_edit', id=x['id']) }}">Edit</a></td>
         </tr>

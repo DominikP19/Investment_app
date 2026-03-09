@@ -4,7 +4,6 @@ from app.forms import AssetFormAdd, AssetFormEdit, TransactionFormAdd, Transacti
 import csv
 import decimal
 from flask import Blueprint, g, render_template, request, redirect, url_for, flash
-import math
 
 bp = Blueprint('data_import', __name__, url_prefix='/import')
 
@@ -46,10 +45,11 @@ def import_asset_manual():
         isin = form.isin.data
         ticker = form.ticker.data
         asset_type = form.asset_type.data
+        currency = form.currency.data
         try:
             con.execute(
-            "INSERT INTO ASSET (name, isin, ticker, asset_type_id) VALUES (%s, %s, %s, %s)",
-            (name, isin, ticker, asset_type)
+            "INSERT INTO ASSET (name, isin, ticker, asset_type_id, currency) VALUES (%s, %s, %s, %s, %s)",
+            (name, isin, ticker, asset_type, currency)
             )
             con.commit()
         except Exception as e:
@@ -63,7 +63,7 @@ def import_asset_manual():
 
 @bp.route('/asset_list', methods=['GET'])
 def asset_list():
-    query = "SELECT a.id, a.name, a.isin, a.ticker, at.name as asset_type FROM asset a " \
+    query = "SELECT a.id, a.name, a.isin, a.ticker, at.name as asset_type, a.currency FROM asset a " \
                             "INNER JOIN asset_type at ON at.id = a.asset_type_id;"
     
     assets = select_query(query, dict=True, fetchall=True)
@@ -81,6 +81,7 @@ def asset_edit(id):
         form.name.data = asset['name']
         form.isin.data = asset['isin']
         form.ticker.data = asset['ticker']
+        form.currency.data = asset['currency']
 
     query_asset_type = "SELECT id, code FROM asset_type;"
     form.asset_type.choices = select_query(query_asset_type, dict=False, fetchall=True)
@@ -91,10 +92,12 @@ def asset_edit(id):
         isin = form.isin.data
         ticker = form.ticker.data
         asset_type = form.asset_type.data
+        currency = form.currency.data
         try:
             con.execute(
-            "UPDATE ASSET SET name=%s, isin=%s, ticker=%s, asset_type_id=%s WHERE id=%s",
-            (name, isin, ticker, asset_type, id)
+            "UPDATE ASSET SET name=%s, isin=%s, ticker=%s, asset_type_id=%s," \
+            " currency=%s WHERE id=%s",
+            (name, isin, ticker, asset_type, currency, id)
             )
             con.commit()
         except Exception as e:

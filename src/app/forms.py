@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, DecimalField, FileField, SubmitField
+from wtforms import StringField, SelectField, DecimalField, FileField, SubmitField, DateField
 from wtforms.validators import DataRequired, InputRequired
 
 class AssetForm(FlaskForm):
@@ -7,6 +7,7 @@ class AssetForm(FlaskForm):
     isin = StringField('ISIN')
     ticker = StringField('Ticker')
     asset_type = SelectField('Asset Type', coerce=int, validators=[InputRequired()])
+    currency = StringField('Currency', validators=[DataRequired()])
 
 class AssetFormAdd(AssetForm):
     submit = SubmitField('Add')
@@ -17,7 +18,7 @@ class AssetFormEdit(AssetForm):
 
 
 class TransactionForm(FlaskForm):
-    date = StringField('Date', validators=[DataRequired()])
+    date = DateField('Date', format='%Y-%m-%d', validators=[DataRequired()])
     description = StringField('Description')
     transaction_type = SelectField('Transaction Type', coerce=int, validators=[InputRequired()])
     asset = SelectField('Asset', coerce=int, validators=[InputRequired()])
