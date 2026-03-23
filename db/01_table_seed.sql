@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS ASSET_VALUATION (
     asset_id INTEGER NOT NULL,
     date DATE NOT NULL,
     currency VARCHAR(3) NOT NULL,
-    quantity INTEGER NOT NULL,
+    price FINANCIAL NOT NULL,
     constraint fk_asset FOREIGN KEY (asset_id) REFERENCES ASSET(id) ON DELETE CASCADE
 );
 
@@ -278,3 +278,36 @@ VALUES
 ('SEL', 'COMMODITY', 'Tax', 'Cash'),
 ('SEL', 'COMMODITY', 'P&L', 'Commodity')
 ;
+
+CREATE VIEW IF NOT EXISTS POSITION (
+SELECT
+        t.asset_id,
+        t.portfolio_id,
+        MAX(tl.quantity) AS quantity,
+        t.currency,
+        SUM(tl.tax_base_amount) AS total_cost,
+        SUM(t.fee) AS total_fee,
+        SUM(t.tax_amount) AS total_tax,
+		MAX(av.date) AS valuation_date,
+		MAX(av.price) * MAX(tl.quantity) AS current_holding_value
+    FROM TRANSACTION t 
+    INNER JOIN TRANSACTION_TYPE tt
+        ON t.transaction_type_id = tt.id
+	LEFT JOIN TAX_LOT tl
+		ON tl.transaction_id = t.id
+	LEFT JOIN (SELECT asset_id, 
+                price, 
+                date 
+                FROM (
+                    (SELECT RANK() OVER (PARTITION BY asset_id ORDER BY date DESC) AS RNK,
+                     asset_id, 
+                     price, 
+                     date 
+                     FROM asset_valuation))
+                WHERE RNK = 1 ) av
+		ON av.asset_id = t.asset_id
+    GROUP BY 
+        t.asset_id,
+        t.portfolio_id,
+        t.currency
+);
