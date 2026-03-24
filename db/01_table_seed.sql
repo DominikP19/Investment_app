@@ -97,7 +97,8 @@ CREATE TABLE IF NOT EXISTS STG_ASSET_DATA (
     asset_type_code VARCHAR(20) NOT NULL,
     date DATE NOT NULL,
     price FINANCIAL NOT NULL,
-    currency VARCHAR(3) NOT NULL
+    currency VARCHAR(3) NOT NULL,
+    constraint unique_stg_asset UNIQUE (name, isin, date, price, currency)
 );
 
 CREATE TABLE IF NOT EXISTS STG_TRANSACTION_DATA (

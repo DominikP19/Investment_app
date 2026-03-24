@@ -4,13 +4,11 @@ from psycopg.rows import dict_row
 from app.forms import AssetFormAdd, AssetFormEdit, TransactionFormAdd, TransactionFormEdit, AssetFileImport, TransactionFileImport
 import decimal
 from flask import Blueprint, g, render_template, request, redirect, url_for, flash
-from typing import Any
 
 bp = Blueprint('data_import', __name__, url_prefix='/import')
 
-def select_query(query: str, dict: bool = False, fetchall:bool = False, *params: Any) -> dict | list:
+def select_query(query: str, dict: bool = False, fetchall:bool = False, *params: int | str) -> dict | list:
     conn = db.get_db()
-    error = None
     result = None
     result_dict = None
     if dict:
@@ -23,16 +21,12 @@ def select_query(query: str, dict: bool = False, fetchall:bool = False, *params:
         try:
             result = conn.execute(query, params).fetchall() if fetchall else conn.execute(query, params).fetchone()
         except Exception as e:
-            error = f'Failed to execute query: {str(e)}'
-
-    if error:   
-        flash(error)
+            flash(f'Failed to execute query: {str(e)}')
 
     return result_dict if dict else result
 
 @bp.route('/asset_manual', methods=['GET', 'POST'])
 def import_asset_manual():
-    error = None
     query = "SELECT id, code FROM asset_type;"
     form = AssetFormAdd()
     form.asset_type.choices = select_query(query, dict=False, fetchall=True)
@@ -50,11 +44,9 @@ def import_asset_manual():
             )
             con.commit()
         except Exception as e:
-            error = f"ASSET insert failed: {str(e)}"
+            flash(f"ASSET insert failed: {str(e)}")
 
         return redirect(url_for('data_import.asset_list'))
-
-    flash(error)
 
     return render_template('asset_add.html', form=form)
 
@@ -69,7 +61,6 @@ def asset_list():
 
 @bp.route('/asset_edit/<int:id>', methods=['GET', 'POST'])
 def asset_edit(id):
-    error = None
     query_asset = "SELECT id, name, isin, ticker, asset_type_id, currency " \
         "FROM asset WHERE id = %s;"
     asset = select_query(query_asset, True, False, id)
@@ -98,32 +89,25 @@ def asset_edit(id):
             )
             con.commit()
         except Exception as e:
-            error = f"ASSET update failed: {str(e)}"
+            flash(f"ASSET update failed: {str(e)}")
 
         return redirect(url_for('data_import.asset_list'))
-    
-    flash(error)
-    flash(id)
     
     return render_template('asset_edit.html', form=form, id=id)
 
 @bp.route('/asset_delete/<int:id>', methods=['POST'])
 def asset_delete(id):
     con = db.get_db()
-    error = None
     try:
         con.execute("DELETE FROM ASSET WHERE id=%s", (id,))
         con.commit()
     except Exception as e:
-        error = f"ASSET delete failed: {str(e)}"
-
-    flash(error)
+        flash(f"ASSET delete failed: {str(e)}")
 
     return redirect(url_for('data_import.asset_list'))
 
 @bp.route('/transaction_manual', methods=['GET', 'POST'])
 def import_transaction_manual():
-    error = None
     query_asset = "SELECT id, name FROM asset;"
     query_portfolio = "SELECT id, name FROM portfolio;"
     query_transaction_type = "SELECT id, code FROM transaction_type;"
@@ -154,11 +138,9 @@ def import_transaction_manual():
             )
             con.commit()
         except Exception as e:
-            error = f"TRANSACTION insert failed: {str(e)}"
+            flash(f"TRANSACTION insert failed: {str(e)}")
 
         return redirect(url_for('data_import.transaction_list'))
-
-    flash(error)
 
     return render_template('transaction_add.html', form=form)
 
@@ -181,7 +163,6 @@ def transaction_list():
 
 @bp.route('/transaction_edit/<int:id>', methods=['GET', 'POST'])
 def transaction_edit(id):
-    error = None
     query_transaction = "SELECT id, date, description, transaction_type_id, " \
     "asset_id, quantity, price, total_amount, currency, fee, tax_amount, " \
     "portfolio_id " \
@@ -228,11 +209,9 @@ def transaction_edit(id):
             )
             con.commit()
         except Exception as e:
-            error = f"TRANSACTION update failed: {str(e)}"
+            flash(f"TRANSACTION update failed: {str(e)}")
 
         return redirect(url_for('data_import.transaction_list'))
-
-    flash(error)
 
     return render_template('transaction_edit.html', form=form, id=id)
 
@@ -255,8 +234,8 @@ def asset_import():
         file = form.file.data
 
         try:
-            data = parser.asset_parse_csv(file.read)
-            inserted, skipped = db.insert_assets(data)
+            data = parser.asset_parse_csv(file.read())
+            inserted, skipped = db.import_assets(data)
             flash(f"Asset file processed - {inserted} inserted, {skipped} skipped")
         except Exception as e:
             flash(f"Asset file processing failed: {str(e)}")
@@ -273,8 +252,8 @@ def transaction_import():
         file = form.file.data
 
         try:
-            data = parser.transaction_parse_csv(file.read)
-            inserted, skipped = db.insert_transactions(data)
+            data = parser.transaction_parse_csv(file.read())
+            inserted, skipped = db.import_transactions(data)
             flash(f"Transaction file processed - {inserted} inserted, {skipped} skipped")
         except Exception as e:
             flash(f"Transaction file processing failed: {str(e)}")
