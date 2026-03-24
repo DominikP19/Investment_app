@@ -4,10 +4,11 @@ from psycopg.rows import dict_row
 from app.forms import AssetFormAdd, AssetFormEdit, TransactionFormAdd, TransactionFormEdit, AssetFileImport, TransactionFileImport
 import decimal
 from flask import Blueprint, g, render_template, request, redirect, url_for, flash
+from typing import Any
 
 bp = Blueprint('data_import', __name__, url_prefix='/import')
 
-def select_query(query, dict=False, fetchall=False, *params):
+def select_query(query: str, dict: bool = False, fetchall:bool = False, *params: Any) -> dict | list:
     conn = db.get_db()
     error = None
     result = None
