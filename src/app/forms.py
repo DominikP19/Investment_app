@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, DecimalField, FileField, SubmitField, DateField
+from flask_wtf.file import FileField, FileRequired, FileAllowed
+from wtforms import StringField, SelectField, DecimalField, SubmitField, DateField
 from wtforms.validators import DataRequired, InputRequired
 
 class AssetForm(FlaskForm):
@@ -15,7 +16,6 @@ class AssetFormAdd(AssetForm):
 class AssetFormEdit(AssetForm):
     submit = SubmitField('Update')
     #delete = SubmitField('Delete')
-
 
 class TransactionForm(FlaskForm):
     date = DateField('Date', format='%Y-%m-%d', validators=[DataRequired()])
@@ -34,3 +34,17 @@ class TransactionFormAdd(TransactionForm):
 class TransactionFormEdit(TransactionForm):
     submit = SubmitField('Update')
     #delete = SubmitField('Delete')
+
+class AssetFileImport(FlaskForm):
+    file = FileField('Asset CSV', validators=[
+        FileRequired(),
+        FileAllowed(['csv'], 'Only .csv files allowed.')
+    ])
+    submit = SubmitField('Upload')
+
+class TransactionFileImport(FlaskForm):
+    file = FileField('Transaction CSV', validators=[
+        FileRequired(),
+        FileAllowed(['csv'], 'Only .csv files allowed.')
+    ])
+    submit = SubmitField('Upload')

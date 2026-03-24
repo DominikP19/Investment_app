@@ -9,7 +9,8 @@ def create_app():
         POSTGRES_PASSWORD=os.getenv('POSTGRES_PASSWORD'),
         POSTGRES_DB=os.getenv('POSTGRES_DB'),
         DB_HOST=os.getenv('DB_HOST'),
-        SECRET_KEY='dev'
+        SECRET_KEY='dev',
+        MAX_CONTENT_LENGTH=16*1024*1024 #16MB limit
     )
 
     @app.route('/hello')

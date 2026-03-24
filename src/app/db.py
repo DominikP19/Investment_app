@@ -19,5 +19,11 @@ def close_db(e=None):
     if db is not None:
         db.close()
 
+def import_assets(rows: list[dict]) -> tuple[int,int]:
+    return 0,0
+
+def import_transaction(rows: list[dict]) -> tuple[int,int]:
+    return 0,0
+
 def init_app(app):
     app.teardown_appcontext(close_db)

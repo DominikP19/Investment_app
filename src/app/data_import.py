@@ -1,7 +1,7 @@
 import app.db as db
+import app.parser as parser
 from psycopg.rows import dict_row
-from app.forms import AssetFormAdd, AssetFormEdit, TransactionFormAdd, TransactionFormEdit
-import csv
+from app.forms import AssetFormAdd, AssetFormEdit, TransactionFormAdd, TransactionFormEdit, AssetFileImport, TransactionFileImport
 import decimal
 from flask import Blueprint, g, render_template, request, redirect, url_for, flash
 
@@ -28,10 +28,6 @@ def select_query(query, dict=False, fetchall=False, *params):
         flash(error)
 
     return result_dict if dict else result
-
-@bp.route('/import_csv', methods=['GET', 'POST'])
-def import_csv():
-    return render_template('import_csv.html')
 
 @bp.route('/asset_manual', methods=['GET', 'POST'])
 def import_asset_manual():
@@ -73,7 +69,7 @@ def asset_list():
 @bp.route('/asset_edit/<int:id>', methods=['GET', 'POST'])
 def asset_edit(id):
     error = None
-    query_asset = "SELECT id, name, isin, ticker, asset_type_id " \
+    query_asset = "SELECT id, name, isin, ticker, asset_type_id, currency " \
         "FROM asset WHERE id = %s;"
     asset = select_query(query_asset, True, False, id)
     form = AssetFormEdit()
@@ -242,13 +238,47 @@ def transaction_edit(id):
 @bp.route('/transaction_delete/<int:id>', methods=['POST'])
 def transaction_delete(id):
     con = db.get_db()
-    error = None
     try:
         con.execute("DELETE FROM TRANSACTION WHERE id=%s", (id,))
         con.commit()
     except Exception as e:
-        error = f"TRANSACTION delete failed: {str(e)}"
-
-    flash(error)
+        flash(f"TRANSACTION delete failed: {str(e)}")
 
     return redirect(url_for('data_import.transaction_list'))
+
+@bp.route('/asset_import', methods=['GET', 'POST'])
+def asset_import():
+    form = AssetFileImport()
+
+    if form.validate_on_submit():
+        file = form.file.data
+
+        try:
+            data = parser.asset_parse_csv(file.read)
+            inserted, skipped = db.insert_assets(data)
+            flash(f"Asset file processed - {inserted} inserted, {skipped} skipped")
+        except Exception as e:
+            flash(f"Asset file processing failed: {str(e)}")
+        
+        return redirect(url_for('data_import.asset_list'))
+    
+    return render_template('asset_import.html', form=form)
+    
+@bp.route('/transaction_import', methods=['GET', 'POST'])
+def transaction_import():
+    form = TransactionFileImport()
+
+    if form.validate_on_submit():
+        file = form.file.data
+
+        try:
+            data = parser.transaction_parse_csv(file.read)
+            inserted, skipped = db.insert_transactions(data)
+            flash(f"Transaction file processed - {inserted} inserted, {skipped} skipped")
+        except Exception as e:
+            flash(f"Transaction file processing failed: {str(e)}")
+               
+        return redirect(url_for('data_import.transaction_list'))
+    
+    return render_template('transaction_import.html', form=form)
+  
