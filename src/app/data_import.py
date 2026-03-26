@@ -25,15 +25,6 @@ def select_query(query: str, dict: bool = False, fetchall:bool = False, *params:
 
     return result_dict if dict else result
 
-def process_asset_data() -> None:
-    # process asset data from STG_ASSET_DATA into ASSET table if asset not exists
-    # and move data into ASSET_VALUATION 
-    return None
-
-def process_transaction_data() -> None:
-    # process data from STG_TRANSACTION_DATA into TRANSACTION data
-    return None
-
 @bp.route('/asset_manual', methods=['GET', 'POST'])
 def import_asset_manual():
     query = "SELECT id, code FROM asset_type;"
@@ -245,7 +236,6 @@ def asset_import():
         try:
             data = parser.asset_parse_csv(file.read())
             inserted, skipped = db.import_assets(data)
-            process_asset_data()
             flash(f"Asset file processed - {inserted} inserted, {skipped} skipped")
         except Exception as e:
             flash(f"Asset file processing failed: {str(e)}")
@@ -264,7 +254,6 @@ def transaction_import():
         try:
             data = parser.transaction_parse_csv(file.read())
             inserted, skipped = db.import_transactions(data)
-            process_transaction_data()
             flash(f"Transaction file processed - {inserted} inserted, {skipped} skipped")
         except Exception as e:
             flash(f"Transaction file processing failed: {str(e)}")

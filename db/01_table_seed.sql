@@ -280,7 +280,7 @@ VALUES
 ('SEL', 'COMMODITY', 'P&L', 'Commodity')
 ;
 
-CREATE VIEW IF NOT EXISTS POSITION (
+CREATE OR REPLACE VIEW POSITION AS
 SELECT
         t.asset_id,
         t.portfolio_id,
@@ -310,5 +310,4 @@ SELECT
     GROUP BY 
         t.asset_id,
         t.portfolio_id,
-        t.currency
-);
+        t.currency;

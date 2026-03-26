@@ -173,6 +173,59 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION fnc_process_stg_asset_data()
+RETURNS TRIGGER
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_asset_type asset_type.id%type;
+    v_asset asset%rowtype;
+    v_asset_id asset.id%type;
+BEGIN
+    SELECT id INTO v_asset_type
+    FROM ASSET_TYPE 
+    WHERE code = NEW.asset_type_code;
+
+    IF v_asset_type IS NULL THEN
+        RAISE EXCEPTION 'Trying to isnert non-existent asset_type_code %', NEW.asset_type_code;
+    END IF;
+
+    SELECT * INTO v_asset
+    FROM ASSET
+    WHERE TRIM(both from lower(name)) = TRIM(both from lower(NEW.name))
+    AND currency = NEW.currency
+    AND asset_type_id = v_asset_type;
+
+    IF v_asset.id IS NULL THEN
+        INSERT INTO ASSET (name, isin, ticker, asset_type_id, currency)
+        VALUES (
+            NEW.name,
+            NEW.isin,
+            NEW.ticker,
+            v_asset_type,
+            NEW.currency
+        ) RETURNING id INTO v_asset_id;
+
+        INSERT INTO ASSET_VALUATION (asset_id, date, currency, price)
+        VALUES (
+            v_asset_id,
+            NEW.date,
+            NEW.currency,
+            NEW.price
+        );
+    ELSIF v_asset.id IS NOT NULL THEN
+        INSERT INTO ASSET_VALUATION (asset_id, date, currency, price)
+        VALUES (
+            v_asset.id,
+            NEW.date,
+            NEW.currency,
+            NEW.price
+        );
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
 -- TRIGGERS
 CREATE OR REPLACE TRIGGER trg_calc_transaction
 BEFORE INSERT OR UPDATE ON TRANSACTION
@@ -188,3 +241,8 @@ CREATE OR REPLACE TRIGGER trg_calc_tax_lot
 AFTER INSERT OR UPDATE ON TRANSACTION
 FOR EACH ROW
 EXECUTE FUNCTION fnc_calc_tax_lot();
+
+CREATE OR REPLACE TRIGGER trg_stg_asset_data
+AFTER INSERT ON STG_ASSET_DATA
+FOR EACH ROW
+EXECUTE FUNCTION fnc_process_stg_asset_data()
