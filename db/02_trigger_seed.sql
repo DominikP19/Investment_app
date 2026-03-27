@@ -2,19 +2,55 @@ CREATE OR REPLACE FUNCTION get_transaction_type(id INTEGER)
 RETURNS transaction_type.code%type
 LANGUAGE SQL 
 BEGIN ATOMIC
- SELECT CODE FROM TRANSACTION_TYPE WHERE id = get_transaction_type.id;
+    SELECT code 
+    FROM TRANSACTION_TYPE 
+    WHERE id = get_transaction_type.id;
 END;
+
+CREATE OR REPLACE FUNCTION get_transaction_type_id(transaction_code TEXT)
+RETURNS transaction_type.id%type
+LANGUAGE SQL AS $$
+    SELECT id 
+    FROM TRANSACTION_TYPE 
+    WHERE TRIM(both from lower(code)) = TRIM(both from lower($1));
+$$;
 
 CREATE OR REPLACE FUNCTION get_tax_bracket(portfolio_id INTEGER)
 RETURNS tax_rate.rate%type
 LANGUAGE SQL
 BEGIN ATOMIC
- SELECT RATE 
+ SELECT rate 
     FROM TAX_RATE 
     WHERE ID = (SELECT tax_rate_id 
                 FROM PORTFOLIO 
                 WHERE id = get_tax_bracket.portfolio_id);
 END;
+
+CREATE OR REPLACE FUNCTION get_portfolio_id(portoflio_name TEXT)
+RETURNS portfolio.id%type
+LANGUAGE SQL AS $$
+    SELECT id 
+    FROM PORTFOLIO 
+    WHERE TRIM(both from lower(name)) = TRIM(both from lower($1));
+$$;
+
+CREATE OR REPLACE FUNCTION get_asset_type_id(asset_type_code TEXT)
+RETURNS asset.id%type
+LANGUAGE SQL AS $$
+    SELECT id
+    FROM ASSET_TYPE
+    WHERE TRIM(both from lower(code)) = TRIM(both from lower($1));
+$$;
+
+CREATE OR REPLACE FUNCTION get_asset_id(asset_name TEXT, currency TEXT)
+RETURNS asset.id%type
+LANGUAGE SQL AS $$
+    SELECT id
+    FROM ASSET
+    WHERE TRIM(both from lower(name)) = TRIM(both from lower($1))
+    AND currency = $2;
+$$;
+
 
 --TRIGGER FUNCTIONS
 CREATE OR REPLACE FUNCTION fnc_calc_transaction_data() 
@@ -148,12 +184,10 @@ BEGIN
                    ORDER BY DATE ASC  -- FIFO approach
         LOOP
             IF v_quantity_cnt >= lot.quantity THEN
-                --v_tax_base_comp := v_tax_base_comp + lot.tax_base_amount;
                 v_quantity_cnt := v_quantity_cnt - lot.quantity;
                 DELETE FROM TAX_LOT WHERE id = lot.id;
             ELSE
-                -- final, partial tax lot 
-                --v_tax_base_comp := v_tax_base_comp + ROUND(v_quantity_cnt * lot.price, 2);
+                -- final, partial tax lot
                 UPDATE TAX_LOT SET 
                 quantity = lot.quantity - v_quantity_cnt,
                 tax_base_amount = ROUND((lot.quantity - v_quantity_cnt) * lot.price ,2)
@@ -178,9 +212,7 @@ DECLARE
     v_asset asset%rowtype;
     v_asset_id asset.id%type;
 BEGIN
-    SELECT id INTO v_asset_type
-    FROM ASSET_TYPE 
-    WHERE code = NEW.asset_type_code;
+    v_asset_type = get_asset_type_id(NEW.asset_type_code);
 
     IF v_asset_type IS NULL THEN
         RAISE EXCEPTION 'Trying to isnert non-existent asset_type_code %', NEW.asset_type_code;
@@ -226,6 +258,74 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION fnc_validate_stg_transaction_data()
+RETURNS TRIGGER
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_transaction_type_id   transaction.id%type;
+    v_portfolio_id          portfolio.id%type;
+    v_asset_id              asset.id%type;
+BEGIN
+    v_transaction_type_id = get_transaction_type_id(NEW.transaction_type_code);
+    v_portfolio_id = get_portfolio_id(NEW.portfolio_name);
+    v_asset_id = get_asset_id(NEW.asset_name, NEW.currency);
+
+    IF v_asset_id IS NULL THEN
+        RAISE EXCEPTION 'Trying to insert non-exisisting asset %', NEW.asset_name;
+    END IF;
+
+    IF v_transaction_type_id IS NULL THEN
+        RAISE EXCEPTION 'Trying to insert non-existing transaction_type_code %', NEW.transaction_type_code;
+    END IF;
+
+    IF v_portfolio_id IS NULL THEN
+        RAISE EXCEPTION 'Trying to insert into non-existing portfolio %', NEW.portfolio_name;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fnc_process_stg_transaction_data()
+RETURNS TRIGGER
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_transaction_type_id   transaction.id%type;
+    v_portfolio_id          portfolio.id%type;
+    v_asset_id              asset.id%type;
+BEGIN
+    v_transaction_type_id = get_transaction_type_id(NEW.transaction_type_code);
+    v_portfolio_id = get_portfolio_id(NEW.portfolio_name);
+    v_asset_id = get_asset_id(NEW.asset_name, NEW.currency);
+
+    INSERT INTO TRANSACTION (
+        date,
+        description,
+        transaction_type_id,
+        asset_id,
+        quantity,
+        currency,
+        price,
+        fee,
+        tax_amount,
+        portfolio_id
+    ) VALUES (
+        NEW.date,
+        'Imported from CSV',
+        v_transaction_type_id,
+        v_asset_id,
+        NEW.quantity,
+        NEW.currency,
+        NEW.price,
+        NEW.fee,
+        NEW.tax_amount,
+        v_portfolio_id
+    );
+
+    RETURN NULL;
+END;
+$$;
+
 -- TRIGGERS
 CREATE OR REPLACE TRIGGER trg_calc_transaction
 BEFORE INSERT OR UPDATE ON TRANSACTION
@@ -245,4 +345,14 @@ EXECUTE FUNCTION fnc_calc_tax_lot();
 CREATE OR REPLACE TRIGGER trg_stg_asset_data
 AFTER INSERT ON STG_ASSET_DATA
 FOR EACH ROW
-EXECUTE FUNCTION fnc_process_stg_asset_data()
+EXECUTE FUNCTION fnc_process_stg_asset_data();
+
+CREATE OR REPLACE TRIGGER trg_validate_stg_transaction_data
+BEFORE INSERT ON STG_TRANSACTION_DATA
+FOR EACH ROW
+EXECUTE FUNCTION fnc_validate_stg_transaction_data();
+
+CREATE OR REPLACE TRIGGER trg_stg_transaction_data
+AFTER INSERT OR UPDATE ON STG_TRANSACTION_DATA
+FOR EACH ROW
+EXECUTE FUNCTION fnc_process_stg_transaction_data();

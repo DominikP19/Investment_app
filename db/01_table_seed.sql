@@ -95,8 +95,8 @@ CREATE TABLE IF NOT EXISTS STG_ASSET_DATA (
     isin VARCHAR(20),
     ticker VARCHAR(20),
     asset_type_code VARCHAR(20) NOT NULL,
-    date DATE NOT NULL,
-    price FINANCIAL NOT NULL,
+    date DATE,
+    price FINANCIAL,
     currency VARCHAR(3) NOT NULL,
     constraint unique_stg_asset UNIQUE (name, isin, date, price, currency)
 );

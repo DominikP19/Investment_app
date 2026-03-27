@@ -24,11 +24,11 @@ def asset_parse_csv(file_bytes: bytes) -> list[dict]:
         try:
             rows.append({
                 'name':             row['name'].strip(),
-                'isin':             row['isin'].strip(),
-                'ticker':           row['ticker'].strip(),
+                'isin':             (row['isin'].strip() if row['isin'] != '' else None),
+                'ticker':           (row['ticker'].strip() if row['ticker'] != '' else None),
                 'asset_type_code':  row['asset_type_code'].strip(),
-                'date':             datetime.datetime.strptime(row['date'].strip(), DATE_FORMAT),
-                'price':            Decimal(row['price']),
+                'date':             (datetime.datetime.strptime((row['date'].strip()), DATE_FORMAT) if row['date'] else None),
+                'price':            (Decimal(row['price']) if row['price'] else None),
                 'currency':         row['currency'].strip()
                 })
         except (ValueError, KeyError) as e:
@@ -52,14 +52,14 @@ def transaction_parse_csv(file_bytes: bytes) -> list[dict]:
             rows.append({
                 'date':                     datetime.datetime.strptime(row['date'].strip(), DATE_FORMAT),
                 'asset_name':               row['asset_name'].strip(),
-                'ticker':                   row['ticker'].strip(),
+                'ticker':                   (row['ticker'].strip() if row['ticker'] != '' else None),
                 'transaction_type_code':    row['transaction_type_code'].strip(),
                 'quantity':                 int(row['quantity']),
                 'currency':                 row['currency'].strip(),
                 'price':                    Decimal(row['price']),
-                'total_amount':             Decimal(row['total_amount']),
-                'fee':                      Decimal(row['fee']),
-                'total_with_fee':           Decimal(row['total_with_fee']),
+                'total_amount':             (Decimal(row['total_amount']) if row['total_amount'] else None),
+                'fee':                      (Decimal(row['fee']) if row['fee'] else None),
+                'total_with_fee':           (Decimal(row['total_with_fee']) if row['total_with_fee'] else None),
                 'tax_amount':               (Decimal(row['tax_amount']) if row['tax_amount'] else None),
                 'portfolio_name':           row['portfolio_name'].strip()
             })
