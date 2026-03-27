@@ -201,22 +201,25 @@ BEGIN
             v_asset_type,
             NEW.currency
         ) RETURNING id INTO v_asset_id;
-
-        INSERT INTO ASSET_VALUATION (asset_id, date, currency, price)
-        VALUES (
-            v_asset_id,
-            NEW.date,
-            NEW.currency,
-            NEW.price
-        );
+        IF NEW.price IS NOT NULL THEN
+            INSERT INTO ASSET_VALUATION (asset_id, date, currency, price)
+            VALUES (
+                v_asset_id,
+                NEW.date,
+                NEW.currency,
+                NEW.price
+            );
+        END IF;
     ELSIF v_asset.id IS NOT NULL THEN
-        INSERT INTO ASSET_VALUATION (asset_id, date, currency, price)
-        VALUES (
-            v_asset.id,
-            NEW.date,
-            NEW.currency,
-            NEW.price
-        );
+        IF NEW.price IS NOT NULL THEN
+            INSERT INTO ASSET_VALUATION (asset_id, date, currency, price)
+            VALUES (
+                v_asset.id,
+                NEW.date,
+                NEW.currency,
+                NEW.price
+            );
+        END IF;
     END IF;
 
     RETURN NULL;

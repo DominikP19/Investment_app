@@ -41,8 +41,32 @@ def import_assets(rows: list[dict]) -> tuple[int,int]:
                     flash(f"Error during insert {str(e)}")
     return inserted,skipped
 
-def import_transaction(rows: list[dict]) -> tuple[int,int]:
-    return 0,0
+def import_transactions(rows: list[dict]) -> tuple[int,int]:
+    inserted, skipped = 0, 0
+    with get_db() as con:
+        with con.cursor() as cur:
+            for row in rows:
+                try:
+                    con.execute('INSERT INTO STG_TRANSACTION_DATA \
+                                (date, asset_name, ticker, \
+                                 transaction_type_code, quantity,  \
+                                 currency, price, total_amount, fee,  \
+                                 total_with_fee, tax_amount, \
+                                 portfolio_name) \
+                                 VALUES (%(date)s, %(asset_name)s,  \
+                                 %(ticker)s, %(transaction_type_code)s,  \
+                                 %(quantity)s, %(currency)s, %(price)s,  \
+                                 %(total_amount)s, %(fee)s,  \
+                                 %(total_with_fee)s, %(tax_amount)s, \
+                                 %(portfolio_name)s )', row
+                                )
+                    if cur.rowcount:
+                        inserted += 1
+                    else:
+                        skipped += 1
+                except Exception as e:
+                    flash(f"Error during insert {str(e)}")
+    return inserted,skipped
 
 def init_app(app):
     app.teardown_appcontext(close_db)
