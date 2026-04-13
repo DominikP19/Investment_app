@@ -12,7 +12,7 @@ RETURNS transaction_type.id%type
 LANGUAGE SQL AS $$
     SELECT id 
     FROM TRANSACTION_TYPE 
-    WHERE TRIM(both from lower(code)) = TRIM(both from lower($1));
+    WHERE code = $1;
 $$;
 
 CREATE OR REPLACE FUNCTION get_tax_bracket(portfolio_id INTEGER)
@@ -31,7 +31,7 @@ RETURNS portfolio.id%type
 LANGUAGE SQL AS $$
     SELECT id 
     FROM PORTFOLIO 
-    WHERE TRIM(both from lower(name)) = TRIM(both from lower($1));
+    WHERE name = $1;
 $$;
 
 CREATE OR REPLACE FUNCTION get_asset_type_id(asset_type_code TEXT)
@@ -39,7 +39,19 @@ RETURNS asset.id%type
 LANGUAGE SQL AS $$
     SELECT id
     FROM ASSET_TYPE
-    WHERE TRIM(both from lower(code)) = TRIM(both from lower($1));
+    WHERE code = $1;
+$$;
+
+CREATE OR REPLACE FUNCTION get_asset_type_code_from_asset_id(asset_id INTEGER)
+RETURNS asset_type.code%type
+LANGUAGE SQL AS $$
+    SELECT code
+    FROM ASSET_TYPE
+    WHERE id = (
+        SELECT asset_type_id
+        FROM ASSET
+        WHERE id = $1
+    );
 $$;
 
 CREATE OR REPLACE FUNCTION get_asset_id(asset_name TEXT, currency TEXT)
@@ -47,12 +59,11 @@ RETURNS asset.id%type
 LANGUAGE SQL AS $$
     SELECT id
     FROM ASSET
-    WHERE TRIM(both from lower(name)) = TRIM(both from lower($1))
+    WHERE name = $1
     AND currency = $2;
 $$;
 
-
---TRIGGER FUNCTIONS
+-- TRIGGER FUNCTIONS
 CREATE OR REPLACE FUNCTION fnc_calc_transaction_data() 
 RETURNS TRIGGER
 LANGUAGE plpgsql AS $$
@@ -113,29 +124,13 @@ BEGIN
             END LOOP;
 
         NEW.tax_amount := ROUND(((NEW.price * NEW.quantity)-v_tax_base_comp) * (v_tax_rate / 100));
+        IF NEW.tax_amount < 0 THEN
+            NEW.tax_amount := 0;
+        END IF;
         END IF;
     END IF;
 
 	RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION fnc_create_booking()
-RETURNS TRIGGER
-LANGUAGE plpgsql AS $$
-DECLARE
-    v_transaction_type_code transaction_type.code%type;
-    v_asset_type_code asset_type.code%type;
-BEGIN
-    v_transaction_type_code = get_transaction_type(NEW.transaction_type_id);
-
-    SELECT code INTO v_asset_type_code
-    FROM ASSET_TYPE
-    WHERE ID = (SELECT asset_type_id FROM ASSET
-                WHERE id = NEW.asset_id);
-
-    -- @TODO: add booking matrix table to replace giant case here
-    RETURN NULL;
 END;
 $$;
 
@@ -146,7 +141,7 @@ DECLARE
     v_tax_rate tax_rate.rate%type;
     v_transaction_type_code transaction_type.code%type;
     v_quantity_cnt INTEGER;
-    --v_tax_base_comp FINANCIAL := 0;
+    -- v_tax_base_comp FINANCIAL := 0;
     lot RECORD;
 BEGIN
     -- tax on DIV and INT calculated directly in transaction trigger
@@ -331,11 +326,6 @@ CREATE OR REPLACE TRIGGER trg_calc_transaction
 BEFORE INSERT OR UPDATE ON TRANSACTION
 FOR EACH ROW
 EXECUTE FUNCTION fnc_calc_transaction_data();
-
-CREATE OR REPLACE TRIGGER trg_booking
-AFTER INSERT OR UPDATE ON TRANSACTION
-FOR EACH ROW
-EXECUTE FUNCTION fnc_create_booking();
 
 CREATE OR REPLACE TRIGGER trg_calc_tax_lot
 AFTER INSERT OR UPDATE ON TRANSACTION
