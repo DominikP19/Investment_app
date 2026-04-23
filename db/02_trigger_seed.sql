@@ -72,7 +72,7 @@ DECLARE
     v_transaction_type_code transaction_type.code%type;
     v_position_quantity transaction.quantity%type;
     v_quantity_cnt INTEGER;
-    v_tax_base_comp FINANCIAL := 0;
+    v_cost_base_comp FINANCIAL := 0;
     lot RECORD;
 BEGIN
     v_tax_rate := get_tax_bracket(NEW.portfolio_id);
@@ -82,7 +82,7 @@ BEGIN
 
     -- tax_amount in case of selling calculated and updated based on tax lots
     IF v_transaction_type_code IN ('DIV', 'INT') AND v_tax_rate <> 0 THEN
-        NEW.tax_amount := ROUND((NEW.price * NEW.quantity) * (v_tax_rate / 100), 2);
+        NEW.tax_amount := ROUND((NEW.price) * (v_tax_rate / 100), 2);
     END IF;
 
     IF v_transaction_type_code = 'SEL' THEN
@@ -102,31 +102,34 @@ BEGIN
             RAISE EXCEPTION 'Trying to sell % when overall holding is %', NEW.quantity, v_position_quantity;
         END IF;
 
+        
+        v_quantity_cnt := NEW.quantity;
+        v_cost_base_comp := 0;
+
+        FOR lot IN SELECT id, quantity, price, cost_base_amount 
+                    FROM TRANSACTION_LOT 
+                    WHERE asset_id = NEW.asset_id 
+                    AND portfolio_id = NEW.portfolio_id
+                    AND currency = NEW.currency
+                    ORDER BY DATE ASC  -- FIFO approach
+        LOOP
+            IF v_quantity_cnt >= lot.quantity THEN
+                v_cost_base_comp := v_cost_base_comp + lot.cost_base_amount;
+                v_quantity_cnt := v_quantity_cnt - lot.quantity;
+            ELSE
+                -- final, partial tax lot 
+                v_cost_base_comp := v_cost_base_comp + ROUND(v_quantity_cnt * lot.price, 2);
+                EXIT;
+            END IF;
+        END LOOP;
+
+        NEW.transaction_result := ROUND((NEW.price * NEW.quantity) - v_cost_base_comp - COALESCE(NEW.fee, 0), 2);
+
         IF v_tax_rate <> 0 THEN
-            v_quantity_cnt := NEW.quantity;
-            v_tax_base_comp := 0;
-
-            FOR lot IN SELECT id, quantity, price, tax_base_amount 
-                        FROM TAX_LOT 
-                        WHERE asset_id = NEW.asset_id 
-                        AND portfolio_id = NEW.portfolio_id
-                        AND currency = NEW.currency
-                        ORDER BY DATE ASC  -- FIFO approach
-            LOOP
-                IF v_quantity_cnt >= lot.quantity THEN
-                    v_tax_base_comp := v_tax_base_comp + lot.tax_base_amount;
-                    v_quantity_cnt := v_quantity_cnt - lot.quantity;
-                ELSE
-                    -- final, partial tax lot 
-                    v_tax_base_comp := v_tax_base_comp + ROUND(v_quantity_cnt * lot.price, 2);
-                    EXIT;
-                END IF;
-            END LOOP;
-
-        NEW.tax_amount := ROUND(((NEW.price * NEW.quantity)-v_tax_base_comp) * (v_tax_rate / 100));
-        IF NEW.tax_amount < 0 THEN
-            NEW.tax_amount := 0;
-        END IF;
+            NEW.tax_amount := ROUND(((NEW.price * NEW.quantity)-v_cost_base_comp) * (v_tax_rate / 100));
+            IF NEW.tax_amount < 0 THEN
+                NEW.tax_amount := 0;
+            END IF;
         END IF;
     END IF;
 
@@ -134,22 +137,19 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION fnc_calc_tax_lot()
+CREATE OR REPLACE FUNCTION fnc_calc_transaction_lot()
 RETURNS TRIGGER 
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_tax_rate tax_rate.rate%type;
     v_transaction_type_code transaction_type.code%type;
     v_quantity_cnt INTEGER;
-    -- v_tax_base_comp FINANCIAL := 0;
     lot RECORD;
 BEGIN
     -- tax on DIV and INT calculated directly in transaction trigger
-    v_tax_rate = get_tax_bracket(NEW.portfolio_id);
     v_transaction_type_code = get_transaction_type(NEW.transaction_type_id);
 
-    IF v_transaction_type_code = 'BUY' AND v_tax_rate <> 0 THEN
-        INSERT INTO TAX_LOT(
+    IF v_transaction_type_code = 'BUY' THEN
+        INSERT INTO TRANSACTION_LOT(
          asset_id, 
          portfolio_id, 
          transaction_id,
@@ -157,7 +157,7 @@ BEGIN
          currency, 
          quantity, 
          price, 
-         tax_base_amount)
+         cost_base_amount)
         VALUES (
          NEW.asset_id, 
          NEW.portfolio_id,
@@ -168,11 +168,11 @@ BEGIN
          NEW.price, 
          NEW.quantity * NEW.price);
 
-    ELSIF v_transaction_type_code = 'SEL' AND v_tax_rate <> 0 THEN
+    ELSIF v_transaction_type_code = 'SEL' THEN
         v_quantity_cnt = NEW.quantity;
 
-        FOR lot IN SELECT id, quantity, price, tax_base_amount 
-                   FROM TAX_LOT 
+        FOR lot IN SELECT id, quantity, price, cost_base_amount 
+                   FROM TRANSACTION_LOT 
                    WHERE asset_id = NEW.asset_id 
                    AND portfolio_id = NEW.portfolio_id
                    AND currency = NEW.currency
@@ -180,12 +180,12 @@ BEGIN
         LOOP
             IF v_quantity_cnt >= lot.quantity THEN
                 v_quantity_cnt := v_quantity_cnt - lot.quantity;
-                DELETE FROM TAX_LOT WHERE id = lot.id;
+                DELETE FROM TRANSACTION_LOT WHERE id = lot.id;
             ELSE
                 -- final, partial tax lot
-                UPDATE TAX_LOT SET 
+                UPDATE TRANSACTION_LOT SET 
                 quantity = lot.quantity - v_quantity_cnt,
-                tax_base_amount = ROUND((lot.quantity - v_quantity_cnt) * lot.price ,2)
+                cost_base_amount = ROUND((lot.quantity - v_quantity_cnt) * lot.price ,2)
                 WHERE id = lot.id;
 
             EXIT;
@@ -327,10 +327,10 @@ BEFORE INSERT OR UPDATE ON TRANSACTION
 FOR EACH ROW
 EXECUTE FUNCTION fnc_calc_transaction_data();
 
-CREATE OR REPLACE TRIGGER trg_calc_tax_lot
+CREATE OR REPLACE TRIGGER trg_calc_transaction_lot
 AFTER INSERT OR UPDATE ON TRANSACTION
 FOR EACH ROW
-EXECUTE FUNCTION fnc_calc_tax_lot();
+EXECUTE FUNCTION fnc_calc_transaction_lot();
 
 CREATE OR REPLACE TRIGGER trg_stg_asset_data
 AFTER INSERT ON STG_ASSET_DATA

@@ -30,3 +30,7 @@ FUNCTIONALITIES:
 12. Simple accounting & booking system providing  an aggregate status of each account (Cash, Dividends, etc.)
 13. Calculate saved taxes on IKE/IKZE accounts
 
+
+INPUT REQUIREMENTS:
+1. If transactions are loaded from the file, they should be sorted from oldest to newest. The code registers tax lots and checks if user is not trying to sell more than they have in portfolio
+2. If transactions are loaded from the file, please provide 0 as quantity for DIV/INT transactions
