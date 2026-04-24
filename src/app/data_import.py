@@ -1,35 +1,16 @@
 import app.db as db
 import app.parser as parser
-from psycopg.rows import dict_row
 from app.forms import AssetFormAdd, AssetFormEdit, TransactionFormAdd, TransactionFormEdit, AssetFileImport, TransactionFileImport
 import decimal
-from flask import Blueprint, g, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 bp = Blueprint('data_import', __name__, url_prefix='/import')
-
-def select_query(query: str, dict: bool = False, fetchall:bool = False, *params: int | str) -> dict | list:
-    conn = db.get_db()
-    result = None
-    result_dict = None
-    if dict:
-        cur = conn.cursor(row_factory=dict_row)
-        try:
-            result_dict = cur.execute(query, params).fetchall() if fetchall else cur.execute(query, params).fetchone()
-        except Exception as e:
-            error = f'Failed to execute query: {str(e)}'
-    else:       
-        try:
-            result = conn.execute(query, params).fetchall() if fetchall else conn.execute(query, params).fetchone()
-        except Exception as e:
-            flash(f'Failed to execute query: {str(e)}')
-
-    return result_dict if dict else result
 
 @bp.route('/asset_manual', methods=['GET', 'POST'])
 def import_asset_manual():
     query = "SELECT id, code FROM asset_type;"
     form = AssetFormAdd()
-    form.asset_type.choices = select_query(query, dict=False, fetchall=True)
+    form.asset_type.choices = db.select_query(query, dict=False, fetchall=True)
     if form.validate_on_submit():
         con = db.get_db()
         name = form.name.data
@@ -55,7 +36,7 @@ def asset_list():
     query = "SELECT a.id, a.name, a.isin, a.ticker, at.name as asset_type, a.currency FROM asset a " \
                             "INNER JOIN asset_type at ON at.id = a.asset_type_id;"
     
-    assets = select_query(query, dict=True, fetchall=True)
+    assets = db.select_query(query, dict=True, fetchall=True)
 
     return render_template('asset_list.html', assets=assets)
 
@@ -63,7 +44,7 @@ def asset_list():
 def asset_edit(id):
     query_asset = "SELECT id, name, isin, ticker, asset_type_id, currency " \
         "FROM asset WHERE id = %s;"
-    asset = select_query(query_asset, True, False, id)
+    asset = db.select_query(query_asset, True, False, id)
     form = AssetFormEdit()
     if request.method == 'GET':
         form.name.data = asset['name']
@@ -72,7 +53,7 @@ def asset_edit(id):
         form.currency.data = asset['currency']
 
     query_asset_type = "SELECT id, code FROM asset_type;"
-    form.asset_type.choices = select_query(query_asset_type, dict=False, fetchall=True)
+    form.asset_type.choices = db.select_query(query_asset_type, dict=False, fetchall=True)
 
     if form.validate_on_submit():
         con = db.get_db()
@@ -112,9 +93,9 @@ def import_transaction_manual():
     query_portfolio = "SELECT id, name FROM portfolio;"
     query_transaction_type = "SELECT id, code FROM transaction_type;"
     form = TransactionFormAdd()
-    form.asset.choices = select_query(query_asset, dict=False, fetchall=True)
-    form.portfolio.choices = select_query(query_portfolio, dict=False, fetchall=True)
-    form.transaction_type.choices = select_query(query_transaction_type, dict=False, fetchall=True)
+    form.asset.choices = db.select_query(query_asset, dict=False, fetchall=True)
+    form.portfolio.choices = db.select_query(query_portfolio, dict=False, fetchall=True)
+    form.transaction_type.choices = db.select_query(query_transaction_type, dict=False, fetchall=True)
 
     if form.validate_on_submit():
         con = db.get_db()
@@ -157,7 +138,7 @@ def transaction_list():
     "JOIN portfolio p " \
     "ON t.portfolio_id = p.id;"
 
-    transactions = select_query(query, dict=True, fetchall=True)
+    transactions = db.select_query(query, dict=True, fetchall=True)
 
     return render_template('transaction_list.html', transactions=transactions)
 
@@ -167,7 +148,7 @@ def transaction_edit(id):
     "asset_id, quantity, price, total_amount, currency, fee, tax_amount, " \
     "portfolio_id " \
     "FROM TRANSACTION WHERE id=%s"
-    transaction = select_query(query_transaction, True, False, id)
+    transaction = db.select_query(query_transaction, True, False, id)
     form = TransactionFormEdit()
     if request.method == 'GET':
         form.date.data = transaction['date']
@@ -183,9 +164,9 @@ def transaction_edit(id):
     query_asset = "SELECT id, name FROM asset;"
     query_portfolio = "SELECT id, name FROM portfolio;"
     query_transaction_type = "SELECT id, code FROM transaction_type;"
-    form.asset.choices = select_query(query_asset, dict=False, fetchall=True)
-    form.portfolio.choices = select_query(query_portfolio, dict=False, fetchall=True)
-    form.transaction_type.choices = select_query(query_transaction_type, dict=False, fetchall=True)
+    form.asset.choices = db.select_query(query_asset, dict=False, fetchall=True)
+    form.portfolio.choices = db.select_query(query_portfolio, dict=False, fetchall=True)
+    form.transaction_type.choices = db.select_query(query_transaction_type, dict=False, fetchall=True)
 
     if form.validate_on_submit():
         con = db.get_db()

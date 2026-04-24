@@ -212,9 +212,9 @@ SELECT 	pos.*,
 		div.dividend_tax, 
 		interest.total_interest, 
 		interest.interest_tax,
-		COALESCE(pos.realized_gains, 0) + COALESCE(div.total_dividend, 0) + COALESCE(interest.total_interest, 0) AS total_gains,
+		COALESCE(pos.realized_gain, 0) + COALESCE(div.total_dividend, 0) + COALESCE(interest.total_interest, 0) AS total_gain,
 		COALESCE(pos.total_tax, 0) + COALESCE(div.dividend_tax, 0) + COALESCE(interest.interest_tax, 0) AS all_tax,
-		COALESCE(pos.realized_gains, 0) + COALESCE(div.total_dividend, 0) + 
+		COALESCE(pos.realized_gain, 0) + COALESCE(div.total_dividend, 0) + 
 		COALESCE(interest.total_interest, 0) + COALESCE(pos.current_unrealized_gain, 0) AS total_gained_value
 FROM
 (SELECT
@@ -230,7 +230,7 @@ FROM
 		MAX(av.price) AS current_price,
 		MAX(av.price) * SUM(tl.quantity) AS current_holding_value,
 		(MAX(av.price) * SUM(tl.quantity))-SUM(tl.cost_base_amount) AS current_unrealized_gain,
-		SUM(t.transaction_result) as realized_gains
+		SUM(t.transaction_result) as realized_gain
     FROM TRANSACTION t
 	LEFT JOIN TRANSACTION_LOT tl
 		ON tl.transaction_id = t.id

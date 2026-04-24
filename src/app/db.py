@@ -1,4 +1,5 @@
 import psycopg
+from psycopg.rows import dict_row
 
 from flask import current_app, g, flash
 
@@ -67,6 +68,25 @@ def import_transactions(rows: list[dict]) -> tuple[int,int]:
                 except Exception as e:
                     flash(f"Error during insert {str(e)}")
     return inserted,skipped
+
+
+def select_query(query: str, dict: bool = False, fetchall:bool = False, *params: int | str) -> dict | list:
+    conn = get_db()
+    result = None
+    result_dict = None
+    if dict:
+        cur = conn.cursor(row_factory=dict_row)
+        try:
+            result_dict = cur.execute(query, params).fetchall() if fetchall else cur.execute(query, params).fetchone()
+        except Exception as e:
+            error = f'Failed to execute query: {str(e)}'
+    else:       
+        try:
+            result = conn.execute(query, params).fetchall() if fetchall else conn.execute(query, params).fetchone()
+        except Exception as e:
+            flash(f'Failed to execute query: {str(e)}')
+
+    return result_dict if dict else result
 
 def init_app(app):
     app.teardown_appcontext(close_db)

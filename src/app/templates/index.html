@@ -6,13 +6,35 @@
 
 {% block content %}
     <table>
-        <tr><th>Name</th><th>Type</th><th>Units</th><th>Current Value</th></tr>
-        {% for inv in investments %}
+        <tr><th>Asset Name</th><th>Portfolio Name</th><th>Quantity</th>
+            <th>Currency</th><th>Average Price</th><th>Total Cost</th>
+            <th>Total Fee</th><th>Total Tax</th><th>Current Price</th>
+            <th>Current Holding Value</th><th>Current Unrealized Gain</th>
+            <th>Realized Gain</th><th>Total Dividends</th><th>Dividends Tax</th>
+            <th>Total Interest</th><th>Interest Tax</th><th>Total Gain</th>
+            <th>All Taxes</th><th>Total Gained Value</th>
+        </tr>
+        {% for pos in positions %}
         <tr>
-            <td>{{ inv.name }}</td>
-            <td>{{ inv.type }}</td>
-            <td>{{ inv.units }}</td>
-            <td>${{ "%.2f"|format(inv.current_value or 0) }}</td>
+            <td>{{ pos['asset_name'] }}</td>
+            <td>{{ pos['portfolio_name'] }}</td>
+            <td>{{ pos['quantity'] }}</td>
+            <td>{{ pos['currency'] }}</td>
+            <td>{{ pos['avg_buy_price'] }}</td>
+            <td>{{ pos['total_cost'] }}</td>
+            <td>{{ pos['total_fee'] }}</td>
+            <td>{{ pos['total_tax'] }}</td>
+            <td>{{ pos['current_price'] }}</td>
+            <td>{{ pos['current_holding_value'] }}</td>
+            <td>{{ pos['current_unrealized_gain'] }}</td>
+            <td>{{ pos['realized_gain'] }}</td>
+            <td>{{ pos['total_dividend'] }}</td>
+            <td>{{ pos['dividend_tax'] }}</td>
+            <td>{{ pos['total_interest'] }}</td>
+            <td>{{ pos['interest_tax'] }}</td>
+            <td>{{ pos['total_gain'] }}</td>
+            <td>{{ pos['all_tax'] }}</td>
+            <td>{{ pos['total_gained_value'] }}</td>
         </tr>
         {% endfor %}
     </table>
