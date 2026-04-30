@@ -17,6 +17,12 @@ def create_app():
     def hello():
         return "Hello from the Investment App!"
     
+    @app.template_filter('money')
+    def money_filter(value):
+        if value is None:
+            return '0'
+        return f"{value:,.2f}"
+    
     # Adding context teardown to close the database connection after each request
     import app.db as db
     db.init_app(app)

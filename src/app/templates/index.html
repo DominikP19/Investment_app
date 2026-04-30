@@ -6,6 +6,7 @@
 
 {% block content %}
     <table>
+        <thead>
         <tr><th>Asset Name</th><th>Portfolio Name</th><th>Quantity</th>
             <th>Currency</th><th>Average Price</th><th>Total Cost</th>
             <th>Total Fee</th><th>Total Tax</th><th>Current Price</th>
@@ -14,28 +15,51 @@
             <th>Total Interest</th><th>Interest Tax</th><th>Total Gain</th>
             <th>All Taxes</th><th>Total Gained Value</th>
         </tr>
+        </thead>
+        <tbody>
         {% for pos in positions %}
         <tr>
-            <td>{{ pos['asset_name'] }}</td>
+            <td><strong>{{ pos['asset_name'] }}</strong></td>
             <td>{{ pos['portfolio_name'] }}</td>
             <td>{{ pos['quantity'] }}</td>
             <td>{{ pos['currency'] }}</td>
-            <td>{{ pos['avg_buy_price'] }}</td>
-            <td>{{ pos['total_cost'] }}</td>
-            <td>{{ pos['total_fee'] }}</td>
-            <td>{{ pos['total_tax'] }}</td>
-            <td>{{ pos['current_price'] }}</td>
-            <td>{{ pos['current_holding_value'] }}</td>
-            <td>{{ pos['current_unrealized_gain'] }}</td>
-            <td>{{ pos['realized_gain'] }}</td>
-            <td>{{ pos['total_dividend'] }}</td>
-            <td>{{ pos['dividend_tax'] }}</td>
-            <td>{{ pos['total_interest'] }}</td>
-            <td>{{ pos['interest_tax'] }}</td>
-            <td>{{ pos['total_gain'] }}</td>
-            <td>{{ pos['all_tax'] }}</td>
-            <td>{{ pos['total_gained_value'] }}</td>
+            <td>{{ pos['avg_buy_price'] | money }}</td>
+            <td>{{ pos['total_cost'] | money }}</td>
+            <td>{{ pos['total_fee'] | money }}</td>
+            <td>{{ pos['total_tax'] | money }}</td>
+            <td>{{ pos['current_price'] | money }}</td>
+            <td>{{ pos['current_holding_value'] | money }}</td>
+            <td>{{ pos['current_unrealized_gain'] | money }}</td>
+            <td>{{ pos['realized_gain'] | money }}</td>
+            <td>{{ pos['total_dividend'] | money }}</td>
+            <td>{{ pos['dividend_tax'] | money }}</td>
+            <td>{{ pos['total_interest'] | money }}</td>
+            <td>{{ pos['interest_tax'] | money }}</td>
+            <td>{{ pos['total_gain'] | money }}</td>
+            <td>{{ pos['all_tax'] | money }}</td>
+            <td>{{ pos['total_gained_value'] | money }}</td>
         </tr>
         {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="5"><strong>Total</strong></td>
+                <td><strong>{{ totals['total_cost'] | money }}</strong></td>
+                <td><strong>{{ totals['total_fee'] | money }}</strong></td>
+                <td><strong>{{ totals['total_tax'] | money }}</strong></td>
+                <td></td>
+                <td><strong>{{ totals['current_holding_value'] | money }}</strong></td>
+                <td><strong>{{ totals['current_unrealized_gain'] | money }}</strong></td>
+                <td><strong>{{ totals['realized_gain'] | money }}</strong></td>
+                <td><strong>{{ totals['total_dividend'] | money }}</strong></td>
+                <td><strong>{{ totals['dividend_tax'] | money }}</strong></td>
+                <td><strong>{{ totals['total_interest'] | money }}</strong></td>
+                <td><strong>{{ totals['interest_tax'] | money }}</strong></td>
+                <td><strong>{{ totals['total_gain'] | money }}</strong></td>
+                <td><strong>{{ totals['all_tax'] | money }}</strong></td>
+                <td><strong>{{ totals['total_gained_value'] | money }}</strong></td>
+            </tr>
+        </tfoot>
+        
     </table>
 {% endblock %}
