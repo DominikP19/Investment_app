@@ -1,5 +1,8 @@
 import app.db as db
-from flask import (Blueprint, render_template)
+import plotly
+import plotly.graph_objects as go
+from flask import Blueprint, flash, redirect, render_template, url_for
+from app.forms import ValuationForm 
 
 
 bp = Blueprint('portfolio', __name__)
@@ -41,6 +44,53 @@ def index():
 def dashboard():
     return render_template('dashboard.html')
 
-@bp.route('/historical_valuation', methods=['GET'])
+@bp.route('/historical_valuation', methods=['GET', 'POST'])
 def historical_valuation():
-    return render_template('portfolio_valuation.html')
+    form = ValuationForm()
+
+    query = "SELECT date,  sum(total_value) as total_value, sum(total_cost) as total_cost " \
+    "FROM PORTFOLIO_VALUATION GROUP BY date ORDER BY date ASC;"
+
+    rows = db.select_query(query, dict=True, fetchall=True)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=[row['date'] for row in rows], 
+        y=[row['total_value'] for row in rows], 
+        mode='lines+markers', 
+        name='Total Value'))
+    
+    fig.add_trace(go.Scatter(
+        x=[row['date'] for row in rows], 
+        y=[row['total_cost'] for row in rows], 
+        mode='lines+markers', 
+        name='Total Cost'))
+    
+    fig.update_layout(
+        title='Historical Portfolio Valuation',
+        xaxis_title='Date',
+        yaxis_title='Amount (PLN)',
+        legend_title='Legend',
+        template='plotly_white'
+    )
+
+    if form.validate_on_submit():
+        con = db.get_db()
+        try:
+            con.execute(
+                "INSERT INTO PORTFOLIO_VALUATION (portfolio_id, date, currency, " \
+                "total_value, total_cost) " \
+                "SELECT portfolio_id, current_date, 'PLN', " \
+                "sum(current_holding_value) as total_value, " \
+                "sum(total_cost) as total_cost " \
+                "FROM portfolio_summary GROUP BY portfolio_id;"
+            )
+            con.commit()
+            flash("Current valuation added successfully!", )
+        except Exception as e:
+            con.rollback()
+            flash(f"Error during valuation insert: {e}",)
+
+        return redirect(url_for('portfolio.historical_valuation'))
+
+    return render_template('portfolio_valuation.html', form=form, plot=plotly.io.to_json(fig))

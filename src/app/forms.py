@@ -48,3 +48,6 @@ class TransactionFileImport(FlaskForm):
         FileAllowed(['csv'], 'Only .csv files allowed.')
     ])
     submit = SubmitField('Upload')
+
+class ValuationForm(FlaskForm):
+    submit = SubmitField('Perform Valuation')

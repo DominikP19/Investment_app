@@ -5,5 +5,20 @@
 {% endblock %}
 
 {% block content %}
-<p> Placeholder for Portfolio Valuation charts</p>
+    <form method="post">
+        {{ form.csrf_token }}
+        {{ form.submit() }}
+    </form>
+
+  <div id="chart"></div>
+  <script src="https://cdn.plot.ly/plotly-3.5.1.min.js" charset="utf-8"></script>
+  <script type="application/json" id="chart-data">
+    {{ plot | safe }}
+  </script>
+
+  <script>
+    var chartData = document.getElementById('chart-data').textContent;
+    var fig = JSON.parse(chartData);
+    Plotly.newPlot('chart', fig.data, fig.layout);
+  </script>
 {% endblock %}

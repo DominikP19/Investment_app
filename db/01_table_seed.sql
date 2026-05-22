@@ -197,7 +197,9 @@ CREATE TABLE IF NOT EXISTS PORTFOLIO_VALUATION (
     date DATE NOT NULL,
     currency VARCHAR(3) NOT NULL,
     total_value FINANCIAL NOT NULL,
-    constraint fk_portfolio FOREIGN KEY (portfolio_id) REFERENCES PORTFOLIO(id) ON DELETE CASCADE
+	total_cost FINANCIAL NOT NULL,
+    constraint fk_portfolio FOREIGN KEY (portfolio_id) REFERENCES PORTFOLIO(id) ON DELETE CASCADE,
+    unique (portfolio_id, date)
 );
 
 CREATE TABLE IF NOT EXISTS TRANSACTION_LOT (
