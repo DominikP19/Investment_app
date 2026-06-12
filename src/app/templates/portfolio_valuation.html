@@ -21,4 +21,17 @@
     var fig = JSON.parse(chartData);
     Plotly.newPlot('chart', fig.data, fig.layout);
   </script>
+
+  <h2>Last 10 Valuations</h2>
+  <table>
+    <tr><th>Date</th><th>Total Value</th><th>Total Cost</th><th>Gain</th></tr>
+    {% for v in valuations %}
+    <tr>
+      <td>{{ v['date'] }}</td>
+      <td>{{ v['total_value'] | money }}</td>
+      <td>{{ v['total_cost'] | money }}</td>
+      <td>{{ (v['total_value'] - v['total_cost']) | money }}</td>
+    </tr>
+    {% endfor %}
+  </table>
 {% endblock %}

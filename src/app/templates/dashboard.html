@@ -5,5 +5,35 @@
 {% endblock %}
 
 {% block content %}
-<p> Placeholder for dahsboard graphs and charts</p>
+    <h2>Overall Results</h2>
+    <table>
+        <tr><th>Total Dividends</th><th>Total Interest</th><th>Total Fees Paid</th>
+            <th>Realized Gain/Loss</th><th>Unrealized Gain/Loss</th>
+        </tr>
+        <tr>
+            <td>{{ totals['total_dividend'] | money }}</td>
+            <td>{{ totals['total_interest'] | money }}</td>
+            <td>{{ totals['total_fee'] | money }}</td>
+            <td>{{ totals['realized_gain'] | money }}</td>
+            <td>{{ totals['unrealized_gain'] | money }}</td>
+        </tr>
+    </table>
+
+    <div id="pie-charts"></div>
+    <div id="bar-chart"></div>
+
+    <script src="https://cdn.plot.ly/plotly-3.5.1.min.js" charset="utf-8"></script>
+    <script type="application/json" id="pie-data">
+      {{ pie_plot | safe }}
+    </script>
+    <script type="application/json" id="bar-data">
+      {{ bar_plot | safe }}
+    </script>
+
+    <script>
+      var pieFig = JSON.parse(document.getElementById('pie-data').textContent);
+      Plotly.newPlot('pie-charts', pieFig.data, pieFig.layout);
+      var barFig = JSON.parse(document.getElementById('bar-data').textContent);
+      Plotly.newPlot('bar-chart', barFig.data, barFig.layout);
+    </script>
 {% endblock %}

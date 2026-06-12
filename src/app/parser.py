@@ -1,7 +1,7 @@
 import csv
 import io
 import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 ASSET_EXPECTED_COLUMNS = {'name', 'isin', 'ticker', 'asset_type_code','date', 'price', 'currency'}
 TRANSACTION_EXPECTED_COLUMNS = {'date','asset_name', 'ticker', 'transaction_type_code', 
@@ -31,7 +31,7 @@ def asset_parse_csv(file_bytes: bytes) -> list[dict]:
                 'price':            (Decimal(row['price']) if row['price'] else None),
                 'currency':         row['currency'].strip()
                 })
-        except (ValueError, KeyError) as e:
+        except (ValueError, KeyError, InvalidOperation) as e:
             raise ValueError(f"Invalid data on row {i}: {e}")
 
     return rows
@@ -63,7 +63,7 @@ def transaction_parse_csv(file_bytes: bytes) -> list[dict]:
                 'tax_amount':               (Decimal(row['tax_amount']) if row['tax_amount'] else None),
                 'portfolio_name':           row['portfolio_name'].strip()
             })
-        except (ValueError, KeyError) as e:
+        except (ValueError, KeyError, InvalidOperation) as e:
             raise ValueError(f"Invalid data on row {i}: {e}")
-    
+
     return rows

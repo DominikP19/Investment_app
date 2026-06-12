@@ -1,8 +1,10 @@
 import app.db as db
 import plotly
 import plotly.graph_objects as go
+from decimal import Decimal
+from plotly.subplots import make_subplots
 from flask import Blueprint, flash, redirect, render_template, url_for
-from app.forms import ValuationForm 
+from app.forms import ValuationForm
 
 
 bp = Blueprint('portfolio', __name__)
@@ -40,9 +42,85 @@ def index():
     }
     return render_template('index.html', positions=positions, totals=totals)
 
+def aggregate_by_asset(positions: list[dict]) -> dict:
+    aggregated = {}
+    for pos in positions:
+        entry = aggregated.setdefault(pos['asset_name'],
+                                      {'value': Decimal(0), 'gain': Decimal(0)})
+        entry['value'] += pos['current_holding_value']
+        if pos['current_unrealized_gain'] is not None:
+            entry['gain'] += pos['current_unrealized_gain']
+    return aggregated
+
 @bp.route('/dashboard', methods=['GET'])
 def dashboard():
-    return render_template('dashboard.html')
+    # POSITION instead of PORTFOLIO_SUMMARY so closed positions still
+    # contribute their realized gains, dividends and fees
+    totals_query = "SELECT sum(total_dividend) as total_dividend, " \
+    "sum(total_interest) as total_interest, sum(total_fee) as total_fee, " \
+    "sum(realized_gain) as realized_gain, " \
+    "sum(current_unrealized_gain) as unrealized_gain " \
+    "FROM position;"
+
+    totals = db.select_query(totals_query, dict=True, fetchall=False)
+
+    positions_query = "SELECT a.name as asset_name, po.name as portfolio_name, " \
+    "at.code as asset_type_code, p.current_holding_value, " \
+    "p.current_unrealized_gain " \
+    "FROM portfolio_summary p " \
+    "INNER JOIN asset a ON p.asset_id = a.id " \
+    "INNER JOIN asset_type at ON a.asset_type_id = at.id " \
+    "INNER JOIN portfolio po ON p.portfolio_id = po.id " \
+    "ORDER BY p.current_holding_value DESC NULLS LAST;"
+
+    positions = db.select_query(positions_query, dict=True, fetchall=True)
+    valued = [p for p in positions if p['current_holding_value'] is not None]
+
+    all_breakdown = aggregate_by_asset(valued)
+    stock_breakdown = aggregate_by_asset(
+        [p for p in valued if p['asset_type_code'] == 'STOCK'])
+
+    pie_fig = make_subplots(
+        rows=1, cols=2,
+        specs=[[{'type': 'domain'}, {'type': 'domain'}]],
+        subplot_titles=('All Positions', 'Stocks Only'))
+    pie_fig.add_trace(go.Pie(
+        labels=list(all_breakdown.keys()),
+        values=[entry['value'] for entry in all_breakdown.values()],
+        name='All Positions'), row=1, col=1)
+    pie_fig.add_trace(go.Pie(
+        labels=list(stock_breakdown.keys()),
+        values=[entry['value'] for entry in stock_breakdown.values()],
+        name='Stocks Only'), row=1, col=2)
+    pie_fig.update_layout(
+        title='Portfolio Breakdown',
+        template='plotly_white',
+        height=450
+    )
+
+    assets = sorted(all_breakdown.items(),
+                    key=lambda item: item[1]['value'], reverse=True)
+    bar_fig = go.Figure(go.Bar(
+        x=[entry['value'] for _, entry in assets],
+        y=[name for name, _ in assets],
+        orientation='h',
+        marker_color=['#2e7d32' if entry['gain'] >= 0 else '#c62828'
+                      for _, entry in assets],
+        text=[f"{entry['gain']:+,.2f}" for _, entry in assets],
+        textposition='auto'
+    ))
+    bar_fig.update_layout(
+        title='Asset Value with Unrealized Gain/Loss',
+        xaxis_title='Current Holding Value (PLN)',
+        template='plotly_white',
+        height=max(450, 40 * len(assets) + 150),
+        # most valuable asset on top
+        yaxis=dict(autorange='reversed')
+    )
+
+    return render_template('dashboard.html', totals=totals,
+                           pie_plot=plotly.io.to_json(pie_fig),
+                           bar_plot=plotly.io.to_json(bar_fig))
 
 @bp.route('/historical_valuation', methods=['GET', 'POST'])
 def historical_valuation():
@@ -93,4 +171,8 @@ def historical_valuation():
 
         return redirect(url_for('portfolio.historical_valuation'))
 
-    return render_template('portfolio_valuation.html', form=form, plot=plotly.io.to_json(fig))
+    # last 10 valuations, newest first
+    valuations = rows[-10:][::-1]
+
+    return render_template('portfolio_valuation.html', form=form,
+                           plot=plotly.io.to_json(fig), valuations=valuations)
