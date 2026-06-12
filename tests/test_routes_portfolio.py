@@ -78,11 +78,18 @@ DASHBOARD_TOTALS = {
 
 DASHBOARD_POSITIONS = [
     {'asset_name': 'Acme Corp', 'portfolio_name': 'General', 'asset_type_code': 'STOCK',
-     'current_holding_value': Decimal('3000'), 'current_unrealized_gain': Decimal('500')},
+     'current_holding_value': Decimal('3000'), 'current_unrealized_gain': Decimal('500'),
+     'realized_gain': Decimal('100')},
     {'asset_name': 'Treasury Bond', 'portfolio_name': 'IKE', 'asset_type_code': 'BOND',
-     'current_holding_value': Decimal('2000'), 'current_unrealized_gain': Decimal('-50')},
+     'current_holding_value': Decimal('2000'), 'current_unrealized_gain': Decimal('-50'),
+     'realized_gain': None},
     {'asset_name': 'Acme Corp', 'portfolio_name': 'IKE', 'asset_type_code': 'STOCK',
-     'current_holding_value': Decimal('1000'), 'current_unrealized_gain': None},
+     'current_holding_value': Decimal('1000'), 'current_unrealized_gain': None,
+     'realized_gain': None},
+    # gain == 0: shows in the allocation donut but is dropped from the gain bar
+    {'asset_name': 'Cash', 'portfolio_name': 'General', 'asset_type_code': 'CASH',
+     'current_holding_value': Decimal('700'), 'current_unrealized_gain': None,
+     'realized_gain': None},
 ]
 
 
@@ -103,21 +110,56 @@ def test_dashboard_totals_table(client, monkeypatch):
         assert value in html
 
 
-def test_dashboard_pie_charts(client, monkeypatch):
+def test_dashboard_donuts(client, monkeypatch):
     monkeypatch.setattr(app.db, 'select_query', fake_dashboard_queries)
 
     resp = client.get('/dashboard')
+    html = resp.data.decode()
 
-    fig = extract_chart_json(resp.data.decode(), 'pie-data')
-    all_pie, stock_pie = fig['data']
-    # all positions, aggregated per asset across portfolios
-    assert all_pie['labels'] == ['Acme Corp', 'Treasury Bond']
-    assert all_pie['values'] == [4000, 2000]
-    # stocks only
-    assert stock_pie['labels'] == ['Acme Corp']
-    assert stock_pie['values'] == [4000]
-    titles = [a['text'] for a in fig['layout']['annotations']]
-    assert titles == ['All Positions', 'Stocks Only']
+    # two separate figures, one per card
+    all_fig = extract_chart_json(html, 'donut-all-data')
+    stock_fig = extract_chart_json(html, 'donut-stocks-data')
+
+    all_donut = all_fig['data'][0]
+    # aggregated per asset across portfolios, sorted descending by value
+    assert all_donut['labels'] == ['Acme Corp', 'Treasury Bond', 'Cash']
+    assert all_donut['values'] == [4000, 2000, 700]
+    assert all_donut['hole'] == 0.62
+    assert all_donut['sort'] is False
+    assert all_donut['textinfo'] == 'percent'
+    assert all_fig['layout']['showlegend'] is True
+    assert all_fig['layout']['uniformtext'] == {'minsize': 11, 'mode': 'hide'}
+    assert all_fig['layout']['annotations'][0]['text'] == '<b>6,700</b><br>PLN'
+
+    stock_donut = stock_fig['data'][0]
+    assert stock_donut['labels'] == ['Acme Corp']
+    assert stock_donut['values'] == [4000]
+    assert stock_fig['layout']['annotations'][0]['text'] == '<b>4,000</b><br>PLN'
+
+
+def test_dashboard_donut_groups_top_6_plus_other(client, monkeypatch):
+    positions = [
+        {'asset_name': f'Asset {i}', 'portfolio_name': 'General',
+         'asset_type_code': 'STOCK',
+         'current_holding_value': Decimal(100 * i),
+         'current_unrealized_gain': None, 'realized_gain': None}
+        for i in range(1, 9)  # values 100 .. 800
+    ]
+
+    def fake_select(query, *args, **kwargs):
+        if 'sum(total_dividend)' in query.lower():
+            return DASHBOARD_TOTALS
+        return positions
+    monkeypatch.setattr(app.db, 'select_query', fake_select)
+
+    resp = client.get('/dashboard')
+
+    donut = extract_chart_json(resp.data.decode(), 'donut-all-data')['data'][0]
+    assert len(donut['labels']) == 7  # top 6 + Other
+    assert donut['labels'][:2] == ['Asset 8', 'Asset 7']
+    assert donut['labels'][-1] == 'Other (2)'
+    assert donut['values'][-1] == 300  # 100 + 200
+    assert donut['marker']['colors'][-1] == '#c7c9ce'
 
 
 def test_dashboard_bar_chart(client, monkeypatch):
@@ -127,15 +169,17 @@ def test_dashboard_bar_chart(client, monkeypatch):
 
     fig = extract_chart_json(resp.data.decode(), 'bar-data')
     bar = fig['data'][0]
-    # aggregated per asset across portfolios, most valuable first
-    assert bar['y'] == ['Acme Corp', 'Treasury Bond']
-    assert bar['x'] == [4000, 2000]
-    # most valuable asset rendered at the top
-    assert fig['layout']['yaxis']['autorange'] == 'reversed'
-    # summed gain/loss labels on each bar, losses coloured differently
-    assert bar['text'] == ['+500.00', '-50.00']
+    # bar encodes realized + unrealized gain, ascending so biggest gain is on
+    # top; the zero-gain Cash row is filtered out entirely
+    assert bar['y'] == ['Treasury Bond', 'Acme Corp']
+    assert bar['x'] == [-50, 600]
+    assert 'autorange' not in fig['layout']['yaxis']
+    assert bar['text'] == ['−50', '+600']
     colors = bar['marker']['color']
-    assert colors[0] != colors[1]
+    assert colors == ['#d3403c', '#0a8754']
+    # visible zeroline and dynamic height
+    assert fig['layout']['xaxis']['zerolinecolor'] == '#d4d4d8'
+    assert fig['layout']['height'] == 220  # max(220, 2 * 28 + 60)
 
 
 def test_historical_valuation_get_renders_chart(client, monkeypatch):
@@ -148,7 +192,10 @@ def test_historical_valuation_get_renders_chart(client, monkeypatch):
     resp = client.get('/historical_valuation')
 
     assert resp.status_code == 200
-    assert b'Historical Portfolio Valuation' in resp.data
+    assert b'Value vs. cost over time' in resp.data
+    fig = extract_chart_json(resp.data.decode(), 'chart-data')
+    assert [t['name'] for t in fig['data']] == ['Total Cost', 'Total Value']
+    assert fig['data'][1]['fill'] == 'tonexty'
 
 
 def test_historical_valuation_table_shows_last_10_newest_first(client, monkeypatch):

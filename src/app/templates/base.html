@@ -1,31 +1,57 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-<title>{% block title %}{% endblock %}</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} — Investment Manager</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<nav>
-  <h1>Investment manager</h1>
-  <ul>
-    <li><a href="{{ url_for('portfolio.index') }}">Home</a></li>
-    <li><a href="{{ url_for('portfolio.dashboard') }}">Dashboard</a></li>
-    <li><a href="{{ url_for('portfolio.historical_valuation') }}">Portfolio Valuation</a></li>
-    <li><a href="{{ url_for('data_import.import_asset_manual') }}">Add Asset</a></li>
-    <li><a href="{{ url_for('data_import.asset_list') }}">Asset List</a></li>
-    <li><a href="{{ url_for('data_import.import_transaction_manual') }}">Add Transaction</a></li>
-    <li><a href="{{ url_for('data_import.transaction_list') }}">Transaction List</a></li>
-    <li><a href="{{ url_for('data_import.asset_import') }}">Import Asset</a></li>
-    <li><a href="{{ url_for('data_import.transaction_import') }}">Import Transaction</a></li>
-  </ul>
+</head>
+<body>
+<nav class="topnav">
+  <a class="brand" href="{{ url_for('portfolio.index') }}"><span class="logo">IM</span> Investment Manager</a>
+
+  <div class="nav-item">
+    <a class="nav-link{{ ' active' if request.endpoint in ('index', 'portfolio.index') }}"
+       href="{{ url_for('portfolio.index') }}">Portfolio</a>
+  </div>
+  <div class="nav-item">
+    <a class="nav-link{{ ' active' if request.endpoint == 'portfolio.dashboard' }}"
+       href="{{ url_for('portfolio.dashboard') }}">Dashboard</a>
+  </div>
+  <div class="nav-item">
+    <a class="nav-link{{ ' active' if request.endpoint == 'portfolio.historical_valuation' }}"
+       href="{{ url_for('portfolio.historical_valuation') }}">Valuation</a>
+  </div>
+
+  <div class="nav-item">
+    <button class="nav-link{{ ' active' if request.endpoint in ('data_import.asset_list', 'data_import.import_asset_manual', 'data_import.asset_edit', 'data_import.asset_import') }}"
+            type="button">Assets <span class="caret">&#9660;</span></button>
+    <div class="dropdown">
+      <a href="{{ url_for('data_import.asset_list') }}">Asset list <small>Browse &amp; edit all assets</small></a>
+      <a href="{{ url_for('data_import.import_asset_manual') }}">Add asset <small>Manual entry form</small></a>
+      <hr>
+      <a href="{{ url_for('data_import.asset_import') }}">Import CSV <small>Asset valuations file</small></a>
+    </div>
+  </div>
+
+  <div class="nav-item">
+    <button class="nav-link{{ ' active' if request.endpoint in ('data_import.transaction_list', 'data_import.import_transaction_manual', 'data_import.transaction_edit', 'data_import.transaction_import') }}"
+            type="button">Transactions <span class="caret">&#9660;</span></button>
+    <div class="dropdown">
+      <a href="{{ url_for('data_import.transaction_list') }}">Transaction list <small>Full history with details</small></a>
+      <a href="{{ url_for('data_import.import_transaction_manual') }}">Add transaction <small>Buy, sell, dividend&#8230;</small></a>
+      <hr>
+      <a href="{{ url_for('data_import.transaction_import') }}">Import CSV <small>Sorted oldest &#8594; newest</small></a>
+    </div>
+  </div>
 </nav>
-<section class="content">
-  <header>
-    {% block header %}{% endblock %}
-  </header>
+
+<main>
+  {% block header %}{% endblock %}
   {% for message in get_flashed_messages() %}
   <div class="flash">{{ message }}</div>
   {% endfor %}
   {% block content %}{% endblock %}
-</section>
+</main>
 </body>
 </html>

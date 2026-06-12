@@ -1,16 +1,27 @@
 {% extends 'base.html' %}
 
+{% block title %}Portfolio Valuation{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Portfolio Valuation{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Portfolio Valuation</h1>
+    <span class="sub">Historical snapshots, PLN &middot; one per day</span>
+    <div class="actions">
+      <form method="post">
+        {{ form.csrf_token }}
+        <button class="btn primary" type="submit">Snapshot today</button>
+      </form>
+    </div>
+  </div>
 {% endblock %}
 
 {% block content %}
-    <form method="post">
-        {{ form.csrf_token }}
-        {{ form.submit() }}
-    </form>
+  <div class="card chart-card" style="margin-bottom:.75rem">
+    <h3>Value vs. cost over time</h3>
+    <div class="sub">PLN, one snapshot per day</div>
+    <div id="chart"></div>
+  </div>
 
-  <div id="chart"></div>
   <script src="https://cdn.plot.ly/plotly-3.5.1.min.js" charset="utf-8"></script>
   <script type="application/json" id="chart-data">
     {{ plot | safe }}
@@ -19,19 +30,26 @@
   <script>
     var chartData = document.getElementById('chart-data').textContent;
     var fig = JSON.parse(chartData);
-    Plotly.newPlot('chart', fig.data, fig.layout);
+    Plotly.newPlot('chart', fig.data, fig.layout, { displayModeBar: false, responsive: true });
   </script>
 
-  <h2>Last 10 Valuations</h2>
-  <table>
-    <tr><th>Date</th><th>Total Value</th><th>Total Cost</th><th>Gain</th></tr>
-    {% for v in valuations %}
-    <tr>
-      <td>{{ v['date'] }}</td>
-      <td>{{ v['total_value'] | money }}</td>
-      <td>{{ v['total_cost'] | money }}</td>
-      <td>{{ (v['total_value'] - v['total_cost']) | money }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <h2 class="section-title">Last 10 Valuations</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Total value</th><th>Total cost</th><th>Gain</th></tr>
+      </thead>
+      <tbody>
+        {% for v in valuations %}
+        {% set gain = v['total_value'] - v['total_cost'] %}
+        <tr>
+          <td class="txt">{{ v['date'] }}</td>
+          <td>{{ v['total_value'] | money }}</td>
+          <td>{{ v['total_cost'] | money }}</td>
+          <td class="{{ 'pos' if gain >= 0 else 'neg' }}">{{ '+' if gain > 0 }}{{ gain | money }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% endblock %}

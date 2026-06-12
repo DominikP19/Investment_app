@@ -1,26 +1,38 @@
 {% extends 'base.html' %}
 
+{% block title %}Edit Transaction{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Edit Asset{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Edit Transaction</h1>
+    <span class="sub">Totals, taxes and FIFO lots are recomputed by the database</span>
+  </div>
 {% endblock %}
 
 {% block content %}
-  <div class ="transaction-edit">
+  <div class="card form-card">
     <form method="post">
         {{ form.csrf_token }}
-        <div>{{ form.date.label }} {{ form.date() }}</div>
-        <div>{{ form.description.label }} {{ form.description() }}</div>
-        <div>{{ form.transaction_type.label }} {{ form.transaction_type() }}</div>
-        <div>{{ form.asset.label }} {{ form.asset() }}</div>
-        <div>{{ form.quantity.label }} {{ form.quantity() }}</div>
-        <div>{{ form.currency.label }} {{ form.currency() }}</div>
-        <div>{{ form.price.label }} {{ form.price() }}</div>
-        <div>{{ form.fee.label }} {{ form.fee() }}</div>
-        <div>{{ form.portfolio.label }} {{ form.portfolio() }}</div>
-        {{ form.submit() }}
+        <div class="form-grid">
+          <div class="field">{{ form.transaction_type.label }} {{ form.transaction_type() }}</div>
+          <div class="field">{{ form.date.label }} {{ form.date() }}</div>
+          <div class="field">{{ form.asset.label }} {{ form.asset() }}</div>
+          <div class="field">{{ form.portfolio.label }} {{ form.portfolio() }}</div>
+          <div class="field">{{ form.quantity.label }} {{ form.quantity() }}
+            <span class="hint">0 for DIV / INT &mdash; amount goes in price</span>
+          </div>
+          <div class="field">{{ form.price.label }} {{ form.price() }}</div>
+          <div class="field">{{ form.fee.label }} {{ form.fee() }}</div>
+          <div class="field">{{ form.currency.label }} {{ form.currency() }}</div>
+          <div class="field full">{{ form.description.label }} {{ form.description() }}</div>
+        </div>
+        <div class="form-actions">
+          {{ form.submit(class_='btn primary') }}
+          <a class="btn" href="{{ url_for('data_import.transaction_list') }}">Cancel</a>
+        </div>
     </form>
-    <form action="{{ url_for('data_import.transaction_delete', id=id) }}" method="post">
-      <input class="danger" type="submit" value="Delete" onclick="return confirm('Are you sure?');">
+    <form class="delete-form" action="{{ url_for('data_import.transaction_delete', id=id) }}" method="post">
+      <input class="btn danger" type="submit" value="Delete" onclick="return confirm('Are you sure?');">
     </form>
   </div>
 {% endblock %}

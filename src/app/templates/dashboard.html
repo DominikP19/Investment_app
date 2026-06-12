@@ -1,39 +1,74 @@
 {% extends 'base.html' %}
 
+{% block title %}Dashboard{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Dashboard{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Dashboard</h1>
+    <span class="sub">Overall results across all portfolios</span>
+  </div>
 {% endblock %}
 
 {% block content %}
-    <h2>Overall Results</h2>
-    <table>
-        <tr><th>Total Dividends</th><th>Total Interest</th><th>Total Fees Paid</th>
-            <th>Realized Gain/Loss</th><th>Unrealized Gain/Loss</th>
-        </tr>
-        <tr>
-            <td>{{ totals['total_dividend'] | money }}</td>
-            <td>{{ totals['total_interest'] | money }}</td>
-            <td>{{ totals['total_fee'] | money }}</td>
-            <td>{{ totals['realized_gain'] | money }}</td>
-            <td>{{ totals['unrealized_gain'] | money }}</td>
-        </tr>
-    </table>
+    <div class="kpis">
+      <div class="kpi">
+        <div class="label">Realized gain/loss</div>
+        <div class="value {{ 'pos' if (totals['realized_gain'] or 0) >= 0 else 'neg' }}">{{ totals['realized_gain'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Unrealized gain/loss</div>
+        <div class="value {{ 'pos' if (totals['unrealized_gain'] or 0) >= 0 else 'neg' }}">{{ totals['unrealized_gain'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total dividends</div>
+        <div class="value">{{ totals['total_dividend'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total interest</div>
+        <div class="value">{{ totals['total_interest'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total fees paid</div>
+        <div class="value {{ 'neg' if (totals['total_fee'] or 0) > 0 }}">{{ totals['total_fee'] | money }}</div>
+      </div>
+    </div>
 
-    <div id="pie-charts"></div>
-    <div id="bar-chart"></div>
+    <div class="charts-2col">
+      <div class="card chart-card">
+        <h3>Allocation &mdash; all positions</h3>
+        <div class="sub">Top 6 by value, rest grouped as Other</div>
+        <div id="donut-all"></div>
+      </div>
+      <div class="card chart-card">
+        <h3>Allocation &mdash; stocks only</h3>
+        <div class="sub">Top 6 by value, rest grouped as Other</div>
+        <div id="donut-stocks"></div>
+      </div>
+      <div class="card chart-card wide">
+        <h3>Gain by asset</h3>
+        <div class="sub">Realized + unrealized, PLN &mdash; assets with no gain/loss hidden</div>
+        <div id="bar-chart"></div>
+      </div>
+    </div>
 
     <script src="https://cdn.plot.ly/plotly-3.5.1.min.js" charset="utf-8"></script>
-    <script type="application/json" id="pie-data">
-      {{ pie_plot | safe }}
+    <script type="application/json" id="donut-all-data">
+      {{ donut_all_plot | safe }}
+    </script>
+    <script type="application/json" id="donut-stocks-data">
+      {{ donut_stocks_plot | safe }}
     </script>
     <script type="application/json" id="bar-data">
       {{ bar_plot | safe }}
     </script>
 
     <script>
-      var pieFig = JSON.parse(document.getElementById('pie-data').textContent);
-      Plotly.newPlot('pie-charts', pieFig.data, pieFig.layout);
-      var barFig = JSON.parse(document.getElementById('bar-data').textContent);
-      Plotly.newPlot('bar-chart', barFig.data, barFig.layout);
+      var plotConfig = { displayModeBar: false, responsive: true };
+      [['donut-all-data', 'donut-all'],
+       ['donut-stocks-data', 'donut-stocks'],
+       ['bar-data', 'bar-chart']].forEach(function (pair) {
+        var fig = JSON.parse(document.getElementById(pair[0]).textContent);
+        Plotly.newPlot(pair[1], fig.data, fig.layout, plotConfig);
+      });
     </script>
 {% endblock %}

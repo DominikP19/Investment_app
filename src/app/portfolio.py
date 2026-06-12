@@ -2,12 +2,32 @@ import app.db as db
 import plotly
 import plotly.graph_objects as go
 from decimal import Decimal
-from plotly.subplots import make_subplots
 from flask import Blueprint, flash, redirect, render_template, url_for
 from app.forms import ValuationForm
 
 
 bp = Blueprint('portfolio', __name__)
+
+PLOT_PALETTE = ['#2563eb', '#7c3aed', '#0a8754', '#d97706',
+                '#dc2626', '#0891b2', '#64748b']
+DONUT_PALETTE = ['#2563eb', '#7c3aed', '#0a8754', '#d97706',
+                 '#dc2626', '#0891b2', '#db2777', '#65a30d']
+OTHER_COLOR = '#c7c9ce'
+
+def plot_base_layout() -> dict:
+    # shared minimal Plotly layout matching the GUI design (mockup/gui_mockup.html)
+    return dict(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='-apple-system, "Segoe UI", system-ui, sans-serif',
+                  size=12, color='#71717a'),
+        margin=dict(l=55, r=15, t=10, b=35),
+        colorway=PLOT_PALETTE,
+        hoverlabel=dict(bgcolor='#1b1b1f', font=dict(color='#fff', size=12),
+                        bordercolor='rgba(0,0,0,0)'),
+        xaxis=dict(gridcolor='rgba(0,0,0,0)', zeroline=False, linecolor='#e7e7e9'),
+        yaxis=dict(gridcolor='#f1f1f3', zeroline=False, tickformat=',.0f'),
+    )
 
 @bp.route('/', methods=['GET'])
 def index():
@@ -50,7 +70,80 @@ def aggregate_by_asset(positions: list[dict]) -> dict:
         entry['value'] += pos['current_holding_value']
         if pos['current_unrealized_gain'] is not None:
             entry['gain'] += pos['current_unrealized_gain']
+        if pos['realized_gain'] is not None:
+            entry['gain'] += pos['realized_gain']
     return aggregated
+
+def top_n_plus_other(breakdown: dict, n: int = 6) -> list[tuple]:
+    """(name, value) pairs sorted descending, with everything beyond the
+    n largest grouped into an 'Other (count)' slice."""
+    items = sorted(((name, entry['value']) for name, entry in breakdown.items()),
+                   key=lambda item: item[1], reverse=True)
+    top, rest = items[:n], items[n:]
+    if rest:
+        top.append((f"Other ({len(rest)})", sum(value for _, value in rest)))
+    return top
+
+def build_donut(breakdown: dict) -> go.Figure:
+    slices = top_n_plus_other(breakdown)
+    total = sum(entry['value'] for entry in breakdown.values())
+    colors = [OTHER_COLOR if name.startswith('Other (')
+              else DONUT_PALETTE[i % len(DONUT_PALETTE)]
+              for i, (name, _) in enumerate(slices)]
+    fig = go.Figure(go.Pie(
+        labels=[name for name, _ in slices],
+        values=[value for _, value in slices],
+        hole=0.62,
+        sort=False,  # pre-sorted descending so Other stays last
+        direction='clockwise',
+        textinfo='percent',
+        textposition='inside',
+        insidetextorientation='horizontal',
+        marker=dict(colors=colors, line=dict(color='#fff', width=2)),
+        hovertemplate='%{label}: %{value:,.0f} PLN (%{percent})<extra></extra>'))
+    layout = plot_base_layout()
+    del layout['xaxis'], layout['yaxis']  # no cartesian axes on donuts
+    layout.update(
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=300,
+        showlegend=True,
+        legend=dict(orientation='v', x=1.02, y=0.5, yanchor='middle',
+                    font=dict(size=12)),
+        # hide percentages that would not fit inside their slice
+        uniformtext=dict(minsize=11, mode='hide'),
+        annotations=[dict(text=f"<b>{total:,.0f}</b><br>PLN", showarrow=False,
+                          font=dict(size=15, color='#1b1b1f'))])
+    fig.update_layout(**layout)
+    return fig
+
+def build_gain_bar(breakdown: dict) -> go.Figure:
+    # assets with no gain/loss (cash, cars, unvalued real estate) are noise
+    gains = sorted(((name, entry['gain']) for name, entry in breakdown.items()
+                    if entry['gain'] != 0),
+                   key=lambda item: item[1])  # ascending: biggest gain on top
+    fig = go.Figure(go.Bar(
+        x=[gain for _, gain in gains],
+        y=[name for name, _ in gains],
+        orientation='h',
+        marker=dict(color=['#0a8754' if gain >= 0 else '#d3403c'
+                           for _, gain in gains],
+                    opacity=0.85),
+        text=[f"{'+' if gain >= 0 else '−'}{abs(gain):,.0f}"
+              for _, gain in gains],
+        textposition='outside',
+        cliponaxis=False,
+        hovertemplate='%{y}: %{x:,.0f} PLN<extra></extra>'))
+    layout = plot_base_layout()
+    layout.update(
+        margin=dict(l=95, r=70, t=10, b=35),
+        bargap=0.25,
+        height=max(220, len(gains) * 28 + 60))
+    layout['xaxis'] = dict(gridcolor='#f1f1f3', zeroline=True,
+                           zerolinecolor='#d4d4d8', tickformat=',.0f',
+                           linecolor='rgba(0,0,0,0)')
+    layout['yaxis'] = dict(gridcolor='rgba(0,0,0,0)', zeroline=False)
+    fig.update_layout(**layout)
+    return fig
 
 @bp.route('/dashboard', methods=['GET'])
 def dashboard():
@@ -66,7 +159,7 @@ def dashboard():
 
     positions_query = "SELECT a.name as asset_name, po.name as portfolio_name, " \
     "at.code as asset_type_code, p.current_holding_value, " \
-    "p.current_unrealized_gain " \
+    "p.current_unrealized_gain, p.realized_gain " \
     "FROM portfolio_summary p " \
     "INNER JOIN asset a ON p.asset_id = a.id " \
     "INNER JOIN asset_type at ON a.asset_type_id = at.id " \
@@ -80,47 +173,11 @@ def dashboard():
     stock_breakdown = aggregate_by_asset(
         [p for p in valued if p['asset_type_code'] == 'STOCK'])
 
-    pie_fig = make_subplots(
-        rows=1, cols=2,
-        specs=[[{'type': 'domain'}, {'type': 'domain'}]],
-        subplot_titles=('All Positions', 'Stocks Only'))
-    pie_fig.add_trace(go.Pie(
-        labels=list(all_breakdown.keys()),
-        values=[entry['value'] for entry in all_breakdown.values()],
-        name='All Positions'), row=1, col=1)
-    pie_fig.add_trace(go.Pie(
-        labels=list(stock_breakdown.keys()),
-        values=[entry['value'] for entry in stock_breakdown.values()],
-        name='Stocks Only'), row=1, col=2)
-    pie_fig.update_layout(
-        title='Portfolio Breakdown',
-        template='plotly_white',
-        height=450
-    )
-
-    assets = sorted(all_breakdown.items(),
-                    key=lambda item: item[1]['value'], reverse=True)
-    bar_fig = go.Figure(go.Bar(
-        x=[entry['value'] for _, entry in assets],
-        y=[name for name, _ in assets],
-        orientation='h',
-        marker_color=['#2e7d32' if entry['gain'] >= 0 else '#c62828'
-                      for _, entry in assets],
-        text=[f"{entry['gain']:+,.2f}" for _, entry in assets],
-        textposition='auto'
-    ))
-    bar_fig.update_layout(
-        title='Asset Value with Unrealized Gain/Loss',
-        xaxis_title='Current Holding Value (PLN)',
-        template='plotly_white',
-        height=max(450, 40 * len(assets) + 150),
-        # most valuable asset on top
-        yaxis=dict(autorange='reversed')
-    )
-
-    return render_template('dashboard.html', totals=totals,
-                           pie_plot=plotly.io.to_json(pie_fig),
-                           bar_plot=plotly.io.to_json(bar_fig))
+    return render_template(
+        'dashboard.html', totals=totals,
+        donut_all_plot=plotly.io.to_json(build_donut(all_breakdown)),
+        donut_stocks_plot=plotly.io.to_json(build_donut(stock_breakdown)),
+        bar_plot=plotly.io.to_json(build_gain_bar(all_breakdown)))
 
 @bp.route('/historical_valuation', methods=['GET', 'POST'])
 def historical_valuation():
@@ -131,26 +188,36 @@ def historical_valuation():
 
     rows = db.select_query(query, dict=True, fetchall=True)
 
+    # cost first so the value trace can fill down to it (tonexty)
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=[row['date'] for row in rows], 
-        y=[row['total_value'] for row in rows], 
-        mode='lines+markers', 
-        name='Total Value'))
-    
+        x=[row['date'] for row in rows],
+        y=[row['total_cost'] for row in rows],
+        mode='lines',
+        name='Total Cost',
+        line=dict(color='#a1a1aa', width=1.5, dash='dot'),
+        hovertemplate='Cost: %{y:,.0f} PLN<extra></extra>'))
+
     fig.add_trace(go.Scatter(
-        x=[row['date'] for row in rows], 
-        y=[row['total_cost'] for row in rows], 
-        mode='lines+markers', 
-        name='Total Cost'))
-    
-    fig.update_layout(
-        title='Historical Portfolio Valuation',
-        xaxis_title='Date',
-        yaxis_title='Amount (PLN)',
-        legend_title='Legend',
-        template='plotly_white'
-    )
+        x=[row['date'] for row in rows],
+        y=[row['total_value'] for row in rows],
+        mode='lines',
+        name='Total Value',
+        line=dict(color='#2563eb', width=2.2),
+        fill='tonexty',
+        fillcolor='rgba(37,99,235,.07)',
+        hovertemplate='Value: %{y:,.0f} PLN<extra></extra>'))
+
+    line_layout = plot_base_layout()
+    line_layout.update(
+        hovermode='x unified',
+        hoverlabel=dict(bgcolor='#fff', font=dict(color='#1b1b1f', size=12),
+                        bordercolor='#e7e7e9'),
+        legend=dict(orientation='h', x=0, y=1.08),
+        height=340)
+    line_layout['xaxis'].update(showspikes=True, spikecolor='#d4d4d8',
+                                spikethickness=1, spikedash='solid')
+    fig.update_layout(**line_layout)
 
     if form.validate_on_submit():
         con = db.get_db()

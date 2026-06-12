@@ -1,23 +1,35 @@
 {% extends 'base.html' %}
 
+{% block title %}Add Transaction{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Add Transaction{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Add Transaction</h1>
+    <span class="sub">Totals, taxes and FIFO lots are computed by the database</span>
+  </div>
 {% endblock %}
 
 {% block content %}
-  <div class ="transaction-add">
+  <div class="card form-card">
     <form method="post">
         {{ form.csrf_token }}
-        {{ form.date.label }} {{ form.date() }}
-        {{ form.description.label }} {{ form.description() }}
-        {{ form.transaction_type.label }} {{ form.transaction_type() }}
-        {{ form.asset.label }} {{ form.asset() }}
-        {{ form.quantity.label }} {{ form.quantity() }}
-        {{ form.currency.label }} {{ form.currency() }}
-        {{ form.price.label }} {{ form.price() }}
-        {{ form.fee.label }} {{ form.fee() }}
-        {{ form.portfolio.label }} {{ form.portfolio() }}
-        {{ form.submit() }}
+        <div class="form-grid">
+          <div class="field">{{ form.transaction_type.label }} {{ form.transaction_type() }}</div>
+          <div class="field">{{ form.date.label }} {{ form.date() }}</div>
+          <div class="field">{{ form.asset.label }} {{ form.asset() }}</div>
+          <div class="field">{{ form.portfolio.label }} {{ form.portfolio() }}</div>
+          <div class="field">{{ form.quantity.label }} {{ form.quantity() }}
+            <span class="hint">0 for DIV / INT &mdash; amount goes in price</span>
+          </div>
+          <div class="field">{{ form.price.label }} {{ form.price() }}</div>
+          <div class="field">{{ form.fee.label }} {{ form.fee() }}</div>
+          <div class="field">{{ form.currency.label }} {{ form.currency() }}</div>
+          <div class="field full">{{ form.description.label }} {{ form.description() }}</div>
+        </div>
+        <div class="form-actions">
+          {{ form.submit(class_='btn primary') }}
+          <a class="btn" href="{{ url_for('data_import.transaction_list') }}">Cancel</a>
+        </div>
     </form>
   </div>
 {% endblock %}

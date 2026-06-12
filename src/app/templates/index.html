@@ -1,65 +1,128 @@
 {% extends 'base.html' %}
 
+{% block title %}Portfolio{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Portfolio{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Portfolio</h1>
+    <span class="sub">{{ positions | length }} open positions &middot; base currency PLN</span>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('data_import.import_transaction_manual') }}">+ Transaction</a>
+    </div>
+  </div>
 {% endblock %}
 
 {% block content %}
+    <div class="chips">
+      <button class="chip on" type="button" data-portfolio="">All portfolios</button>
+      {% for name in positions | map(attribute='portfolio_name') | unique %}
+      <button class="chip" type="button" data-portfolio="{{ name }}">{{ name }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="label">Current value</div>
+        <div class="value">{{ totals['current_holding_value'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total cost</div>
+        <div class="value">{{ totals['total_cost'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Unrealized gain</div>
+        <div class="value {{ 'pos' if totals['current_unrealized_gain'] >= 0 else 'neg' }}">{{ totals['current_unrealized_gain'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Realized gain</div>
+        <div class="value {{ 'pos' if totals['realized_gain'] >= 0 else 'neg' }}">{{ totals['realized_gain'] | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Dividends &amp; interest</div>
+        <div class="value">{{ (totals['total_dividend'] + totals['total_interest']) | money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">All taxes</div>
+        <div class="value">{{ totals['all_tax'] | money }}</div>
+      </div>
+    </div>
+
+    <div class="card">
     <table>
         <thead>
-        <tr><th>Asset Name</th><th>Portfolio Name</th><th>Quantity</th>
-            <th>Currency</th><th>Average Price</th><th>Total Cost</th>
-            <th>Total Fee</th><th>Total Tax</th><th>Current Price</th>
-            <th>Current Holding Value</th><th>Current Unrealized Gain</th>
-            <th>Realized Gain</th><th>Total Dividends</th><th>Dividends Tax</th>
-            <th>Total Interest</th><th>Interest Tax</th><th>Total Gain</th>
-            <th>All Taxes</th><th>Total Gained Value</th>
+        <tr>
+            <th>Asset</th><th>Qty</th><th>Avg price</th><th>Current</th>
+            <th>Value (PLN)</th><th>Unrealized</th><th>Realized</th><th>Total gain</th>
         </tr>
         </thead>
         <tbody>
         {% for pos in positions %}
-        <tr>
-            <td><strong>{{ pos['asset_name'] }}</strong></td>
-            <td>{{ pos['portfolio_name'] }}</td>
+        {% set unrealized = pos['current_unrealized_gain'] %}
+        {% set realized = pos['realized_gain'] %}
+        {% set total_gain = pos['total_gain'] %}
+        <tr class="row" data-portfolio="{{ pos['portfolio_name'] }}" onclick="toggle(this)">
+            <td class="txt">
+              <span class="asset-cell"><span class="chev">&#9654;</span>
+                <span><span class="name">{{ pos['asset_name'] }}</span>
+                  <span class="tag{{ ' ike' if pos['portfolio_name'] in ('IKE', 'IKZE') }}">{{ pos['portfolio_name'] }}</span>
+                  <br><span class="meta">{{ pos['currency'] }}</span>
+                </span>
+              </span>
+            </td>
             <td>{{ pos['quantity'] }}</td>
-            <td>{{ pos['currency'] }}</td>
             <td>{{ pos['avg_buy_price'] | money }}</td>
-            <td>{{ pos['total_cost'] | money }}</td>
-            <td>{{ pos['total_fee'] | money }}</td>
-            <td>{{ pos['total_tax'] | money }}</td>
             <td>{{ pos['current_price'] | money }}</td>
             <td>{{ pos['current_holding_value'] | money }}</td>
-            <td>{{ pos['current_unrealized_gain'] | money }}</td>
-            <td>{{ pos['realized_gain'] | money }}</td>
-            <td>{{ pos['total_dividend'] | money }}</td>
-            <td>{{ pos['dividend_tax'] | money }}</td>
-            <td>{{ pos['total_interest'] | money }}</td>
-            <td>{{ pos['interest_tax'] | money }}</td>
-            <td>{{ pos['total_gain'] | money }}</td>
-            <td>{{ pos['all_tax'] | money }}</td>
-            <td>{{ pos['total_gained_value'] | money }}</td>
+            <td class="{{ 'pos' if (unrealized or 0) >= 0 else 'neg' }}">
+              {{ '+' if (unrealized or 0) > 0 }}{{ unrealized | money }}{% if unrealized is not none and pos['total_cost'] %}<span class="pct">{{ "%+.1f" | format(unrealized / pos['total_cost'] * 100) }}%</span>{% endif %}
+            </td>
+            <td class="{{ 'pos' if (realized or 0) >= 0 else 'neg' }}">{{ '+' if (realized or 0) > 0 }}{{ realized | money }}</td>
+            <td class="{{ 'pos' if (total_gain or 0) >= 0 else 'neg' }}">{{ '+' if (total_gain or 0) > 0 }}{{ total_gain | money }}</td>
         </tr>
+        <tr class="detail"><td colspan="8">
+          <div class="detail-grid">
+            <div><div class="label">Total fee</div><div class="val">{{ pos['total_fee'] | money }}</div></div>
+            <div><div class="label">Total tax</div><div class="val">{{ pos['total_tax'] | money }}</div></div>
+            <div><div class="label">Dividends</div><div class="val">{{ pos['total_dividend'] | money }}</div></div>
+            <div><div class="label">Dividend tax</div><div class="val">{{ pos['dividend_tax'] | money }}</div></div>
+            <div><div class="label">Interest</div><div class="val">{{ pos['total_interest'] | money }}</div></div>
+            <div><div class="label">Interest tax</div><div class="val">{{ pos['interest_tax'] | money }}</div></div>
+            <div><div class="label">Total gained value</div>
+              <div class="val {{ 'pos' if (pos['total_gained_value'] or 0) >= 0 else 'neg' }}">{{ '+' if (pos['total_gained_value'] or 0) > 0 }}{{ pos['total_gained_value'] | money }}</div>
+            </div>
+          </div>
+        </td></tr>
         {% endfor %}
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="5"><strong>Total</strong></td>
-                <td><strong>{{ totals['total_cost'] | money }}</strong></td>
-                <td><strong>{{ totals['total_fee'] | money }}</strong></td>
-                <td><strong>{{ totals['total_tax'] | money }}</strong></td>
-                <td></td>
-                <td><strong>{{ totals['current_holding_value'] | money }}</strong></td>
-                <td><strong>{{ totals['current_unrealized_gain'] | money }}</strong></td>
-                <td><strong>{{ totals['realized_gain'] | money }}</strong></td>
-                <td><strong>{{ totals['total_dividend'] | money }}</strong></td>
-                <td><strong>{{ totals['dividend_tax'] | money }}</strong></td>
-                <td><strong>{{ totals['total_interest'] | money }}</strong></td>
-                <td><strong>{{ totals['interest_tax'] | money }}</strong></td>
-                <td><strong>{{ totals['total_gain'] | money }}</strong></td>
-                <td><strong>{{ totals['all_tax'] | money }}</strong></td>
-                <td><strong>{{ totals['total_gained_value'] | money }}</strong></td>
+                <td>Total</td><td></td><td></td><td></td>
+                <td>{{ totals['current_holding_value'] | money }}</td>
+                <td class="{{ 'pos' if totals['current_unrealized_gain'] >= 0 else 'neg' }}">{{ '+' if totals['current_unrealized_gain'] > 0 }}{{ totals['current_unrealized_gain'] | money }}</td>
+                <td class="{{ 'pos' if totals['realized_gain'] >= 0 else 'neg' }}">{{ '+' if totals['realized_gain'] > 0 }}{{ totals['realized_gain'] | money }}</td>
+                <td class="{{ 'pos' if totals['total_gain'] >= 0 else 'neg' }}">{{ '+' if totals['total_gain'] > 0 }}{{ totals['total_gain'] | money }}</td>
             </tr>
         </tfoot>
-        
     </table>
+    </div>
+    <p class="note">Click a row to expand fees, taxes, dividends and interest.</p>
+
+    <script>
+      function toggle(row) {
+        row.classList.toggle('open');
+        row.nextElementSibling.classList.toggle('show');
+      }
+      document.querySelectorAll('.chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          document.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('on'); });
+          chip.classList.add('on');
+          var portfolio = chip.dataset.portfolio;
+          document.querySelectorAll('tr.detail').forEach(function (d) { d.classList.remove('show'); });
+          document.querySelectorAll('tr.row').forEach(function (row) {
+            row.classList.remove('open');
+            row.style.display = (!portfolio || row.dataset.portfolio === portfolio) ? '' : 'none';
+          });
+        });
+      });
+    </script>
 {% endblock %}

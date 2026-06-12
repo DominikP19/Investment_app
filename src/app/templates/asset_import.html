@@ -1,13 +1,27 @@
 {% extends 'base.html' %}
 
+{% block title %}Import Assets{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Add Asset{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Import Assets</h1>
+    <span class="sub">Upload a CSV of asset valuations</span>
+  </div>
 {% endblock %}
 
 {% block content %}
+  <div class="card form-card">
     <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
-        {{ form.file.label }} {{ form.file() }}
-        {{ form.submit() }}
+        <div class="form-grid">
+          <div class="field full">{{ form.file.label }} {{ form.file() }}
+            <span class="hint">Columns: name, isin, ticker, asset_type_code, date, price, currency</span>
+          </div>
+        </div>
+        <div class="form-actions">
+          {{ form.submit(class_='btn primary') }}
+          <a class="btn" href="{{ url_for('data_import.asset_list') }}">Cancel</a>
+        </div>
     </form>
+  </div>
 {% endblock %}

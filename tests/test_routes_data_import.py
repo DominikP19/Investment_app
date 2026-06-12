@@ -86,6 +86,30 @@ class TestAssetRoutes:
 
 
 class TestTransactionRoutes:
+    def test_add_transaction_get(self, client, monkeypatch):
+        monkeypatch.setattr(app.db, 'select_query', fake_lookups)
+
+        resp = client.get('/import/transaction_manual')
+
+        assert resp.status_code == 200
+        assert b'Add Transaction' in resp.data
+
+    def test_edit_transaction_get_prefills_form(self, client, monkeypatch):
+        def fake_select(query, *args, **kwargs):
+            if 'WHERE id' in query:
+                return {'id': 1, 'date': datetime.date(2026, 1, 15),
+                        'description': 'test buy', 'transaction_type_id': 1,
+                        'asset_id': 1, 'quantity': 10, 'price': Decimal('100.50'),
+                        'total_amount': None, 'currency': 'PLN',
+                        'fee': Decimal('2.50'), 'tax_amount': None, 'portfolio_id': 1}
+            return fake_lookups(query, *args, **kwargs)
+        monkeypatch.setattr(app.db, 'select_query', fake_select)
+
+        resp = client.get('/import/transaction_edit/1')
+
+        assert resp.status_code == 200
+        assert b'test buy' in resp.data
+
     def test_add_transaction_post(self, client, monkeypatch, fake_con):
         monkeypatch.setattr(app.db, 'select_query', fake_lookups)
 
@@ -136,6 +160,10 @@ class TestTransactionRoutes:
 
 
 class TestFileImports:
+    def test_import_pages_render(self, client):
+        assert client.get('/import/asset_import').status_code == 200
+        assert client.get('/import/transaction_import').status_code == 200
+
     def test_asset_import_post(self, client, monkeypatch):
         captured = {}
 

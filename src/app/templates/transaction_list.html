@@ -1,31 +1,46 @@
 {% extends 'base.html' %}
 
+{% block title %}Transaction List{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Transaction List{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Transaction List</h1>
+    <span class="sub">{{ transactions | length }} transactions</span>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('data_import.transaction_import') }}">Import CSV</a>
+      <a class="btn primary" href="{{ url_for('data_import.import_transaction_manual') }}">+ Add transaction</a>
+    </div>
+  </div>
 {% endblock %}
 
 {% block content %}
+  <div class="card">
     <table>
-        <tr><th>Asset</th><th>Date</th><th>Transaction Type</th>
-            <th>Description</th><th>Quantity</th><th>Currency</th>
+        <thead>
+        <tr><th>Asset</th><th>Date</th><th>Type</th>
+            <th>Description</th><th>Qty</th><th>Currency</th>
             <th>Price</th><th>Total Amount</th><th>Fee</th>
-            <th>Tax Amount</th><th>Portfolio</th>
+            <th>Tax</th><th>Portfolio</th><th></th>
         </tr>
+        </thead>
+        <tbody>
         {% for trans in transactions %}
         <tr>
-            <td>{{ trans['asset'] }}</td>
+            <td class="txt"><span class="name">{{ trans['asset'] }}</span></td>
             <td>{{ trans['date'] }}</td>
-            <td>{{ trans['transaction_type'] }}</td>
-            <td>{{ trans['description'] }}</td>
+            <td class="txt"><span class="tag">{{ trans['transaction_type'] }}</span></td>
+            <td class="txt">{{ trans['description'] }}</td>
             <td>{{ trans['quantity'] }}</td>
             <td>{{ trans['currency'] }}</td>
-            <td>{{ trans['price'] }}</td>
-            <td>{{ trans['total_amount'] }}</td>
-            <td>{{ trans['fee'] }}</td>
-            <td>{{ trans['tax_amount'] }}</td>
-            <td>{{ trans['portfolio'] }}</td>
+            <td>{{ trans['price'] | money }}</td>
+            <td>{{ trans['total_amount'] | money }}</td>
+            <td>{{ trans['fee'] | money }}</td>
+            <td>{{ trans['tax_amount'] | money }}</td>
+            <td class="txt">{{ trans['portfolio'] }}</td>
             <td><a href="{{ url_for('data_import.transaction_edit', id=trans['id']) }}">Edit</a></td>
         </tr>
         {% endfor %}
+        </tbody>
     </table>
+  </div>
 {% endblock %}

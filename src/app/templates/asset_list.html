@@ -1,21 +1,36 @@
 {% extends 'base.html' %}
 
+{% block title %}Asset List{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}Asset List{% endblock %}</h1>
+  <div class="page-head">
+    <h1>Asset List</h1>
+    <span class="sub">{{ assets | length }} assets</span>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('data_import.asset_import') }}">Import CSV</a>
+      <a class="btn primary" href="{{ url_for('data_import.import_asset_manual') }}">+ Add asset</a>
+    </div>
+  </div>
 {% endblock %}
 
 {% block content %}
+  <div class="card">
     <table>
-        <tr><th>Name</th><th>ISIN</th><th>Ticker</th><th>Currency</th><th>Asset Type</th></tr>
+        <thead>
+        <tr><th>Name</th><th>ISIN</th><th>Ticker</th><th>Currency</th><th>Asset Type</th><th></th></tr>
+        </thead>
+        <tbody>
         {% for x in assets %}
         <tr>
-            <td>{{ x['name'] }}</td>
+            <td class="txt"><span class="name">{{ x['name'] }}</span></td>
             <td>{{ x['isin'] }}</td>
             <td>{{ x['ticker'] }}</td>
             <td>{{ x['currency'] }}</td>
-            <td>{{ x['asset_type'] }}</td>
+            <td class="txt">{{ x['asset_type'] }}</td>
             <td><a href="{{ url_for('data_import.asset_edit', id=x['id']) }}">Edit</a></td>
         </tr>
         {% endfor %}
+        </tbody>
     </table>
+  </div>
 {% endblock %}
